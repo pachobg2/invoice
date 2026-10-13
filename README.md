@@ -11,7 +11,7 @@ The program contains **no company, customer or invoice data** — it starts empt
 
 ## Updates
 
-`invoice.exe` checks the latest GitHub release of this repository (about once a day, can be turned off in
+`invoice.exe` checks the latest GitHub release of this repository (on every start, can be turned off in
 Настройки → За програмата), downloads `invoice.exe`, verifies it against `SHA256SUMS.txt` from the same
 release and restarts itself. `invoice-data` is never touched. The Lite edition on a flash drive is refreshed
 from the main app during "sync from flash".

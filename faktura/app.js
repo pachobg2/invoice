@@ -1364,6 +1364,7 @@ $('#syncBtn').onclick = syncFromDrive;
 /* ---------------- about / version ---------------- */
 const LITE_VERSION = '1.1.5';   // keep in sync with lite\Faktura-Lite.csproj
 const CHANGELOG = [
+  ['2.6.1', '13.10.2026', ['Проверка за обновления при всяко стартиране (може да се изключи в Настройки); при нова версия се показва предложение за обновяване']],
   ['2.6.0', '13.10.2026', ['Обновяване през интернет от GitHub (pachobg2/invoice): проверка, изтегляне с контролна сума и автоматичен рестарт; данните не се променят', 'Синхронизацията предлага обновяване на Lite във флашката', 'Програмата вече не носи вградени клиенти, артикули и фактури — стартира празна, данните са само в invoice-data', 'Lite: печатът е с по-големи полета (страницата е смалена до 93% и центрирана)']],
   ['2.5.4', '13.10.2026', ['Lite: печатът е с по-големи полета (страницата е смалена до 93% и центрирана) — повече разстояние от ляв и горен ръб']],
   ['2.5.3', '13.10.2026', ['Lite: поправено изместването на печата наляво — част от фактурата се отрязваше при принтери с непечатаема зона']],
@@ -1423,12 +1424,12 @@ async function updCheck(manual) {
   msg('<div class="mut">Проверявам…</div>');
   try {
     const info = await hostCall('updateCheck'); updSet({ last: Date.now() });
-    if (info.newer && info.ready) { updInfo = info; updBarNew(info); msg(`<div class="okmsg">Има нова версия <b>${esc(info.latest)}</b> — използвайте бутона „Обнови сега“ най-горе.</div>`); }
+    if (info.newer && info.ready) { updInfo = info; updBarNew(info); if (!manual) { await updInstall(); return; } msg(`<div class="okmsg">Има нова версия <b>${esc(info.latest)}</b> — използвайте бутона „Обнови сега“ най-горе.</div>`); }
     else if (info.newer) msg('<div class="err">Има по-нова версия, но още не е напълно публикувана. Опитайте по-късно.</div>');
     else msg(`<div class="okmsg">Имате най-новата версия (${esc(info.current)}).</div>`);
   } catch (e) { msg('<div class="err">Не успях да проверя за обновления (няма интернет или GitHub не отговаря).</div>'); }
 }
-async function updInstall() {
+async function updInstall() {          // asks first (release notes + Обнови); the bar stays if the user says no
   if (updBusy || !updInfo) return;
   if (!await updDetails(true)) return;
   updBusy = true; saveNow(); await backupNow();
@@ -1451,7 +1452,6 @@ $('#up_auto').onchange = e => updSet({ auto: e.target.checked });
 function updAutoCheck() {
   const p = updPref();
   if (!HOST || S.portable || p.auto === false) return;
-  if (p.last && Date.now() - p.last < 20 * 3600 * 1000) return;   // at most about once a day
   setTimeout(() => updCheck(false), 4000);
 }
 

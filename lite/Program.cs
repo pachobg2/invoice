@@ -49,6 +49,39 @@ namespace FakturaLite
                     return 0;
                 }
             foreach (string a in args)
+                if (a.StartsWith("/print-test:"))   // checks only: real printer geometry (no paper is printed) and a print to the PDF printer
+                {
+                    string dir = a.Substring(12); Directory.CreateDirectory(dir);
+                    Doc d = new Doc(); d.No = "3358"; d.Date = "2026-10-13"; d.Tax = d.Date; d.Client = "ТЕСТ КЛИЕНТ"; d.Pay = "В БРОЙ"; d.Comp = "инж. ТЕСТ"; d.Rate = 20;
+                    Item it = new Item(); it.Name = "АРТИКУЛ"; it.Code = "БР."; it.Qty = "1"; it.Price = "10"; d.Items.Add(it); Store.Calc(d);
+                    string report = "";
+                    foreach (string pn in (Environment.GetEnvironmentVariable("PT_PRINTERS") ?? "Microsoft Print to PDF").Split(';'))
+                    {
+                        System.Drawing.Printing.PrintDocument q = new System.Drawing.Printing.PrintDocument(); q.PrinterSettings.PrinterName = pn;
+                        try
+                        {
+                            System.Drawing.Printing.PageSettings ps = q.DefaultPageSettings;
+                            using (System.Drawing.Graphics g = q.PrinterSettings.CreateMeasurementGraphics())
+                            {
+                                IntPtr h = g.GetHdc();
+                                report += pn + ": paper=" + ps.PaperSize.PaperName + " " + ps.PaperSize.Width + "x" + ps.PaperSize.Height + " hard=" + ps.HardMarginX + "," + ps.HardMarginY
+                                    + " caps offX=" + InvoicePrint.Caps(h, 112) + " offY=" + InvoicePrint.Caps(h, 113) + " physW=" + InvoicePrint.Caps(h, 110) + " physH=" + InvoicePrint.Caps(h, 111) + " dpi=" + InvoicePrint.Caps(h, 88) + "\r\n";
+                                g.ReleaseHdc(h);
+                            }
+                        }
+                        catch (Exception ex) { report += pn + ": " + ex.Message + "\r\n"; }
+                    }
+                    try
+                    {
+                        System.Drawing.Printing.PrintDocument pd = InvoicePrint.Create(st, d);
+                        pd.PrinterSettings.PrinterName = "Microsoft Print to PDF"; pd.PrinterSettings.PrintToFile = true; pd.PrinterSettings.PrintFileName = Path.Combine(dir, "out.pdf");
+                        pd.Print(); report += "pdf printed\r\n";
+                    }
+                    catch (Exception ex) { report += "pdf failed: " + ex.Message + "\r\n"; }
+                    File.WriteAllText(Path.Combine(dir, "print-test.txt"), report);
+                    return 0;
+                }
+            foreach (string a in args)
                 if (a.StartsWith("/margin-test:"))   // checks only: where does the ink land for printers with different unprintable margins?
                 {
                     string dir = a.Substring(13); Directory.CreateDirectory(dir);

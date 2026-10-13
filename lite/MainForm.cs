@@ -122,7 +122,18 @@ namespace FakturaLite
             DataGridViewTextBoxColumn cPrice = new DataGridViewTextBoxColumn(); cPrice.HeaderText = "Ед. цена"; cPrice.Width = 100; cPrice.SortMode = DataGridViewColumnSortMode.NotSortable; cPrice.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             DataGridViewTextBoxColumn cVal = new DataGridViewTextBoxColumn(); cVal.HeaderText = "Стойност"; cVal.Width = 110; cVal.ReadOnly = true; cVal.SortMode = DataGridViewColumnSortMode.NotSortable; cVal.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             cVal.DefaultCellStyle.BackColor = Color.FromArgb(245, 246, 248);
-            grid.Columns.AddRange(new DataGridViewColumn[] { cNo, cName, cCode, cQty, cPrice, cVal });
+            DataGridViewButtonColumn cDel = new DataGridViewButtonColumn(); cDel.HeaderText = ""; cDel.Width = 34; cDel.Text = "✕"; cDel.UseColumnTextForButtonValue = true;
+            cDel.FlatStyle = FlatStyle.Flat; cDel.SortMode = DataGridViewColumnSortMode.NotSortable; cDel.DefaultCellStyle.ForeColor = Color.Firebrick; cDel.ToolTipText = "Изтрий реда";
+            grid.Columns.AddRange(new DataGridViewColumn[] { cNo, cName, cCode, cQty, cPrice, cVal, cDel });
+            grid.CellContentClick += delegate (object s, DataGridViewCellEventArgs e)
+            {
+                if (e.RowIndex < 0 || e.ColumnIndex != 6) return;
+                DataGridViewRow r = grid.Rows[e.RowIndex];
+                if (artPop != null) artPop.Hide();
+                if (r.IsNewRow) return;
+                grid.EndEdit();
+                grid.Rows.RemoveAt(e.RowIndex);          // RowsRemoved renumbers and recalculates
+            };
             grid.Resize += delegate { FitGrid(); };
             grid.EditingControlShowing += GridEditing;
             grid.CellEndEdit += GridCellEnd;
@@ -434,11 +445,7 @@ namespace FakturaLite
 
         void PreviewDoc(Doc d)
         {
-            using (PrintPreviewDialog pv = new PrintPreviewDialog())
-            {
-                pv.Document = InvoicePrint.Create(st, d); pv.WindowState = FormWindowState.Maximized; pv.UseAntiAlias = true;
-                pv.ShowDialog(this);
-            }
+            using (PreviewForm pv = new PreviewForm(st, d, delegate { PrintDoc(d); })) pv.ShowDialog(this);
         }
 
         void DoPrint(bool save)

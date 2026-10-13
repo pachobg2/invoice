@@ -7,6 +7,7 @@ using System.Drawing.Text;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace FakturaLite
 {
@@ -96,10 +97,6 @@ namespace FakturaLite
         {
             g.PageUnit = GraphicsUnit.Millimeter;
             g.TranslateTransform(-shiftX, -shiftY);   // must come AFTER the unit switch: the world transform is measured in page units
-            // safe area: shrink the sheet to 93% around its centre so nothing sits near the paper edge (printers clip 5-8 mm)
-            const float SAFE = 0.93f;
-            g.TranslateTransform(210f * (1f - SAFE) / 2f, 297f * (1f - SAFE) / 2f);
-            g.ScaleTransform(SAFE, SAFE);
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAlias;
             List<Item> items = Store.UsedItems(d);
@@ -290,6 +287,9 @@ namespace FakturaLite
         }
 
         /* ------------------------------ printing / preview helpers ------------------------------ */
+        [DllImport("gdi32.dll")] static extern int GetDeviceCaps(IntPtr hdc, int index);
+        public static int Caps(IntPtr hdc, int index) { return GetDeviceCaps(hdc, index); }
+
         public static PrintDocument Create(Store st, Doc d)
         {
             PrintDocument pd = new PrintDocument();
@@ -301,8 +301,26 @@ namespace FakturaLite
             pd.PrintPage += delegate (object s, PrintPageEventArgs e)
             {
                 e.Graphics.ResetTransform();
-                // work in millimetres from the physical paper corner: HardMargin is reported in 1/100 inch
-                DrawPage(e.Graphics, st, d, pages[idx], e.PageSettings.HardMarginX * 25.4f / 100f, e.PageSettings.HardMarginY * 25.4f / 100f);
+                // The page is laid out exactly like the main app's sheet (A4, from the paper corner). A printer's graphics starts at the
+                // printable area instead, so the offset is read from the printer itself (HardMargin only as a fallback) and the sheet is
+                // centred if the driver's paper is not exactly 210 mm wide.
+                float sx = e.PageSettings.HardMarginX * 25.4f / 100f, sy = e.PageSettings.HardMarginY * 25.4f / 100f, cx = 0f;
+                IntPtr hdc = IntPtr.Zero;
+                try
+                {
+                    hdc = e.Graphics.GetHdc();
+                    int dx = GetDeviceCaps(hdc, 88), dy = GetDeviceCaps(hdc, 90);                       // LOGPIXELSX / Y
+                    int ox = GetDeviceCaps(hdc, 112), oy = GetDeviceCaps(hdc, 113), pw = GetDeviceCaps(hdc, 110);   // PHYSICALOFFSETX / Y, PHYSICALWIDTH
+                    if (dx > 0 && dy > 0)
+                    {
+                        if (ox > 0 || oy > 0) { sx = ox * 25.4f / dx; sy = oy * 25.4f / dy; }
+                        float wmm = pw * 25.4f / dx;
+                        if (pw > 0 && wmm > 100f && Math.Abs(wmm - 210f) > 1f) cx = (wmm - 210f) / 2f;
+                    }
+                }
+                catch { }
+                finally { if (hdc != IntPtr.Zero) e.Graphics.ReleaseHdc(hdc); }
+                DrawPage(e.Graphics, st, d, pages[idx], sx - cx, sy);
                 idx++; e.HasMorePages = idx < pages.Count;
             };
             return pd;

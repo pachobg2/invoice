@@ -17,18 +17,18 @@ html,body{height:100%}
 body{margin:0;font:14px/1.4 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
 #scroller{flex:1;min-height:0;min-width:0;overflow:auto}
 #shell{flex:1;min-height:0;display:flex}
-#side{flex:none;width:104px;background:var(--card);border-right:1px solid var(--line);padding:10px 8px;display:flex;flex-direction:column;gap:8px;overflow:auto}
-#side .sb{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:1px solid transparent;border-radius:10px;padding:12px 4px 10px;color:var(--ink);cursor:pointer;font:inherit;font-size:12.5px;line-height:1.25;text-align:center}
-#side .sb svg{color:var(--acc)}
-#side .sb:hover{background:rgba(127,127,127,.14);border-color:var(--line)}
-#side .sb:active{background:rgba(127,127,127,.24)}
-@media(max-width:700px){#side{width:78px}#side .sb{font-size:11px}}
-header{display:flex;align-items:center;gap:2px;background:var(--hd);color:#fff;padding:0 10px;min-height:40px;flex:none;flex-wrap:wrap;z-index:5}
-header .brand{display:flex;align-items:center;gap:8px;margin:3px 14px 3px 0;white-space:nowrap}
-header .brand .bm{height:24px;width:auto}
-header .brand .bt{height:12px;width:auto;opacity:.95}
-header button{background:none;border:0;color:#c9d0e0;padding:10px 10px;cursor:pointer;font:inherit;font-size:13.5px;border-bottom:3px solid transparent;white-space:nowrap}
-header button.on{color:#fff;border-color:var(--acc)}
+#side{flex:none;width:112px;background:var(--hd);color:#c9d0e0;padding:6px 6px;display:flex;flex-direction:column;gap:1px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
+#side .brand{display:flex;flex-direction:column;align-items:center;gap:5px;padding:2px 0 8px;border-bottom:1px solid rgba(255,255,255,.14);margin-bottom:6px}
+#side .brand .bm{height:30px;width:auto}
+#side .brand .bt{height:14px;width:auto;opacity:.95}
+#side .sb{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;border-left:3px solid transparent;border-radius:8px;padding:5px 3px 4px;color:#c9d0e0;cursor:pointer;font:inherit;font-size:11.5px;line-height:1.15;text-align:center;width:100%}
+#side .sb svg{width:25px;height:25px;flex:none}
+#side .sb:hover{background:rgba(255,255,255,.09);color:#fff}
+#side .sb.on{color:#fff;background:rgba(255,255,255,.13);border-left-color:var(--acc)}
+#side .grp{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.6;text-align:center;margin:6px 0 1px;padding-top:6px;border-top:1px solid rgba(255,255,255,.14)}
+#side .sp{flex:1;min-height:6px}
+#side .pbadge{margin:2px 2px 6px;white-space:normal;text-align:center}
+@media(max-width:700px){#side{width:84px}#side .sb{font-size:10.5px}#side .sb svg{width:24px;height:24px}}
 main{max-width:1180px;margin:14px auto;padding:0 14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
 .card h2{margin:0 0 10px;font-size:15px}
@@ -75,8 +75,6 @@ dialog .f{margin-bottom:9px}
 #v_t tr.q td{background:var(--q);font-weight:600}#v_t tr.tt td{background:#1d2330;color:#fff;font-weight:700}
 #v_t a{color:var(--acc);text-decoration:none}
 .warn{background:var(--warn)!important;border-color:var(--warnb)!important}
-.iconbtn{display:flex!important;align-items:center;padding:8px 9px!important;color:#c9d0e0!important}
-.iconbtn:hover{color:#fff!important}
 .seg{display:flex;gap:3px;margin:0 0 12px;padding:3px;background:var(--btn);border-radius:8px;width:max-content;max-width:100%;flex-wrap:wrap}
 .seg button{border:0;background:none;color:var(--mut);padding:6px 14px;border-radius:6px;cursor:pointer;font:inherit}
 .seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.18);font-weight:600}
@@ -152,25 +150,26 @@ dialog .f{margin-bottom:9px}
 </style>
 </head>
 <body>
-<header>
- <div class="brand" title="Фактури — ЯНУС ООД"><img class="bm" src="logo-mark-w.png" alt=""><img class="bt" src="logo-text-w.png" alt="ЯНУС ООД"></div>
- <span id="pbadge" class="pbadge hide" title="Данните са във флашката. Синхронизирайте ги с основното приложение.">ПРЕНОСИМА ВЕРСИЯ</span>
- <button data-t="inv" data-g="inv" class="on">Фактура</button>
- <button data-t="stock" data-g="stock">Складова разписка</button>
- <button data-t="reg" data-g="issued">Издадени документи</button>
- <button data-t="vat" data-g="vat">Справка ДДС</button>
- <button data-t="clients" data-g="clients">Клиенти</button>
- <button data-t="sups" data-g="sups">Доставчици</button>
- <button data-t="arts" data-g="arts">Артикули</button>
- <span style="flex:1"></span>
- <button data-t="set" data-g="set" class="iconbtn" id="setBtn" title="Настройки"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
- <button id="themeBtn" class="iconbtn" title="Светъл / тъмен режим"></button>
-</header>
 <div id="upd_bar" class="hide noprint"></div>
 <div id="shell">
-<nav id="side" class="noprint" aria-label="Флашка">
- <button class="sb" id="prepBtn" title="Подготви флашка (преносима версия)"><svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="9" width="11" height="13" rx="2"/><path d="M9.5 9V3.5h5V9"/><path d="M12 19v-6M9.5 15.5 12 13l2.5 2.5"/></svg><span>Подготви флашка</span></button>
- <button class="sb" id="syncBtn" title="Синхронизирай от флашката (преносима версия)"><svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="9" width="11" height="13" rx="2"/><path d="M9.5 9V3.5h5V9"/><path d="M10.5 6h.01M13.5 6h.01"/><path d="M9.5 15.5h5M12 13v5"/></svg><span>Синхронизирай от флашка</span></button>
+<nav id="side" class="noprint" aria-label="Меню">
+ <div class="brand" title="Фактури — ЯНУС ООД"><img class="bm" src="logo-mark-w.png" alt=""><img class="bt" src="logo-text-w.png" alt="ЯНУС ООД"></div>
+ <span id="pbadge" class="pbadge hide" title="Данните са във флашката. Синхронизирайте ги с основното приложение.">ПРЕНОСИМА ВЕРСИЯ</span>
+ <button class="sb on" data-t="inv" data-g="inv" title="Фактура"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg><span>Фактура</span></button>
+ <button class="sb" data-t="stock" data-g="stock" title="Складова разписка"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>Складова разписка</span></button>
+ <button class="sb" data-t="reg" data-g="issued" title="Издадени документи"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Издадени документи</span></button>
+ <button class="sb" data-t="vat" data-g="vat" title="Справка ДДС"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.3"/><circle cx="17" cy="17" r="2.3"/></svg><span>Справка ДДС</span></button>
+ <button class="sb" data-t="clients" data-g="clients" title="Клиенти"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.2A6.5 6.5 0 0 1 21.5 20"/></svg><span>Клиенти</span></button>
+ <button class="sb" data-t="sups" data-g="sups" title="Доставчици"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h11v10H2z"/><path d="M13 9h4l4 3v4h-8"/><circle cx="6.5" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/></svg><span>Доставчици</span></button>
+ <button class="sb" data-t="arts" data-g="arts" title="Артикули"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.3"/></svg><span>Артикули</span></button>
+ <div id="flashGrp">
+  <div class="grp">Флашка</div>
+  <button class="sb" id="prepBtn" title="Подготви флашка (преносима версия)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="9" width="11" height="13" rx="2"/><path d="M9.5 9V3.5h5V9"/><path d="M12 19v-6M9.5 15.5 12 13l2.5 2.5"/></svg><span>Подготви флашка</span></button>
+  <button class="sb" id="syncBtn" title="Синхронизирай от флашката (преносима версия)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="9" width="11" height="13" rx="2"/><path d="M9.5 9V3.5h5V9"/><path d="M10.5 6h.01M13.5 6h.01"/><path d="M9.5 15.5h5M12 13v5"/></svg><span>Синхронизирай от флашка</span></button>
+ </div>
+ <span class="sp"></span>
+ <button class="sb" data-t="set" data-g="set" title="Настройки"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Настройки</span></button>
+ <button class="sb" id="themeBtn" title="Светъл / тъмен режим"><span class="ic"></span><span id="themeLbl">Тъмен режим</span></button>
 </nav>
 <div id="scroller">
 <main>

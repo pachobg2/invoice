@@ -177,7 +177,7 @@ let lastIssued = 'reg';
 $$('.seg').forEach(el => { el.innerHTML = SEGS[el.dataset.seg].map(([t, l]) => `<button data-t="${t}">${l}</button>`).join(''); });
 function showTab(t) {
   const g = GROUP[t] || t; if (g === 'issued') lastIssued = t;
-  $$('header button[data-g]').forEach(b => b.classList.toggle('on', b.dataset.g === g));
+  $$('#side button[data-g]').forEach(b => b.classList.toggle('on', b.dataset.g === g));
   $$('.seg button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   $$('.tab').forEach(s => s.classList.toggle('hide', s.id !== 'tab-' + t));
   if (t === 'reg') renderReg();
@@ -192,7 +192,7 @@ function showTab(t) {
   try { sessionStorage.setItem('tab', t); } catch (e) { }
   $('#scroller').scrollTop = 0;
 }
-$$('header button[data-t]').forEach(b => b.onclick = () => showTab(b.dataset.g === 'issued' ? lastIssued : b.dataset.t));
+$$('#side button[data-t]').forEach(b => b.onclick = () => showTab(b.dataset.g === 'issued' ? lastIssued : b.dataset.t));
 $$('.seg button').forEach(b => b.onclick = () => showTab(b.dataset.t));
 
 /* ---------------- light / dark theme ---------------- */
@@ -200,8 +200,8 @@ const ICON_SUN = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" st
 const ICON_MOON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
-  $('#themeBtn').innerHTML = t === 'dark' ? ICON_SUN : ICON_MOON;
-  $('#themeBtn').title = t === 'dark' ? 'Светъл режим' : 'Тъмен режим';
+  $('#themeBtn .ic').innerHTML = t === 'dark' ? ICON_SUN : ICON_MOON;
+  $('#themeBtn').title = $('#themeLbl').textContent = t === 'dark' ? 'Светъл режим' : 'Тъмен режим';
 }
 function setTheme(t) { applyTheme(t); try { localStorage.setItem('fk.theme', t); } catch (e) { } if (S) { S.theme = t; save(); } }
 $('#themeBtn').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
@@ -1230,7 +1230,7 @@ function applyPortableUi() {
   $('#pbadge').classList.toggle('hide', !S.portable);
   $('#pt_card').classList.toggle('hide', !!S.portable || !HOST);
   $('#sy_card').classList.toggle('hide', !!S.portable);
-  $('#side').classList.toggle('hide', !!S.portable);
+  $('#flashGrp').classList.toggle('hide', !!S.portable);
   $('#syncBtn').classList.toggle('hide', !!S.portable);
   $('#prepBtn').classList.toggle('hide', !!S.portable || !HOST);
   $('#xl_card').classList.toggle('hide', !!S.portable);
@@ -1370,6 +1370,7 @@ $('#syncBtn').onclick = syncFromDrive;
 /* ---------------- about / version ---------------- */
 const LITE_VERSION = '1.1.5';   // keep in sync with lite\Faktura-Lite.csproj
 const CHANGELOG = [
+  ['2.8.0', '13.10.2026', ['Цялото меню е в странична лента, с икони за всички раздели']],
   ['2.7.1', '13.10.2026', ['Бутоните за флашката са в странична лента — по-големи, с надписи']],
   ['2.7.0', '13.10.2026', ['Подготовка на флашка с форматиране и име INVOICE (само за тази програма)', 'Автоматично откриване на флашката при включване: предлага синхронизиране, ако има нови документи, и обновяване на Lite, ако е по-стар; опция за изключване в Настройки']],
   ['2.6.1', '13.10.2026', ['Проверка за обновления при всяко стартиране (може да се изключи в Настройки); при нова версия се показва предложение за обновяване']],

@@ -1,0 +1,382 @@
+﻿<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<title>Фактури</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/png" href="icon.png">
+<script>try{var t=localStorage.getItem("fk.theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");document.documentElement.dataset.theme=t}catch(e){}</script>
+<style>
+:root{color-scheme:light;--bg:#f3f4f6;--card:#fff;--ink:#1c2230;--mut:#6a7284;--line:#d9dde5;--acc:#1f6feb;--ok:#e6f4ea;--bad:#fde8e6;--warn:#fff4cc;
+ --inp:#fff;--btn:#e8ebf1;--hov:#e7f0fe;--hd:#1c2230;--focus:#bcd3fb;--q:#f1f3f7;--errb:#f1b5af;--okb:#b5dcc0;--warnb:#e6cf7a;--sep:#f0f1f4}
+:root[data-theme=dark]{color-scheme:dark;--bg:#12151c;--card:#1b202b;--ink:#e5e8ef;--mut:#98a1b3;--line:#2f3645;--acc:#5b9bff;--ok:#16301f;--bad:#3b1c1a;--warn:#3a3318;
+ --inp:#141821;--btn:#2a3140;--hov:#26324a;--hd:#0c0f15;--focus:#2d4a7e;--q:#232a38;--errb:#7a3733;--okb:#2d6a42;--warnb:#7a6a2c;--sep:#262c39}
+a{color:var(--acc)}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:14px/1.4 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
+#scroller{flex:1;min-height:0;overflow:auto}
+header{display:flex;align-items:center;gap:2px;background:var(--hd);color:#fff;padding:0 10px;min-height:40px;flex:none;flex-wrap:wrap;z-index:5}
+header .brand{display:flex;align-items:center;gap:8px;margin:3px 14px 3px 0;white-space:nowrap}
+header .brand .bm{height:24px;width:auto}
+header .brand .bt{height:12px;width:auto;opacity:.95}
+header button{background:none;border:0;color:#c9d0e0;padding:10px 10px;cursor:pointer;font:inherit;font-size:13.5px;border-bottom:3px solid transparent;white-space:nowrap}
+header button.on{color:#fff;border-color:var(--acc)}
+main{max-width:1180px;margin:14px auto;padding:0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
+.card h2{margin:0 0 10px;font-size:15px}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+label{display:block;font-size:12px;color:var(--mut);margin-bottom:2px}
+input,select,textarea{width:100%;padding:5px 7px;border:1px solid var(--line);border-radius:5px;font:inherit;background:var(--inp);color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--focus);border-color:var(--acc)}
+input[type=checkbox]{width:auto}
+button.b{background:var(--acc);color:#fff;border:0;border-radius:5px;padding:7px 14px;cursor:pointer;font:inherit}
+button.b.g{background:var(--btn);color:var(--ink)}
+button.b.r{background:#d93025}
+button.b.s{padding:3px 8px;font-size:12px}
+table.t{border-collapse:collapse;width:100%}
+.t th,.t td{padding:3px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.t th{font-size:12px;color:var(--mut);font-weight:600;position:sticky;top:0;background:var(--card)}
+.t td.n,.t th.n{text-align:right;font-variant-numeric:tabular-nums}
+.t input{border-color:transparent;background:transparent;padding:3px 4px}
+.t input:hover{border-color:var(--line);background:var(--inp)}
+.scroll{max-height:68vh;overflow:auto}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.mut{color:var(--mut);font-size:12px}
+.hide{display:none!important}
+.tot{display:flex;gap:22px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+.tot div{text-align:right}.tot b{font-size:16px;display:block}
+.err{background:var(--bad);border:1px solid var(--errb);border-radius:5px;padding:6px 10px;margin:8px 0}
+#upd_bar{background:var(--ok);border-bottom:1px solid var(--okb);padding:6px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.okmsg{background:var(--ok);border:1px solid var(--okb);border-radius:5px;padding:6px 10px;margin:8px 0}
+dialog{border:1px solid var(--line);border-radius:10px;padding:18px;width:min(560px,94vw);background:var(--card);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+dialog h3{margin:0 0 12px}
+dialog .f{margin-bottom:9px}
+/* ---------- printable sheets ---------- */
+.sheet{background:#fff;color:#000;font:11px/1.25 Arial,sans-serif;width:210mm;margin:0 auto 14px;border:1px solid var(--line)}
+#invSheet,#stockSheet,#journalSheet{border:0;background:transparent;width:210mm}
+#sdd{position:fixed;z-index:50;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.18);max-height:280px;overflow:auto;font-size:13px}
+#sdd div{padding:4px 9px;cursor:pointer;border-bottom:1px solid var(--sep);white-space:normal;overflow-wrap:anywhere}
+#sdd .sdh{position:sticky;top:0;background:var(--card);color:var(--mut);font-size:11px;cursor:default;border-bottom:1px solid var(--line)}
+#sdd div.on,#sdd div:hover{background:var(--hov)}
+#sdd small{display:block;color:var(--mut);font-size:11px;white-space:normal;overflow-wrap:anywhere}
+#sdd .none{color:var(--mut);cursor:default}
+.t textarea{width:100%;border:1px solid transparent;background:transparent;padding:3px 4px;resize:none;overflow:hidden;line-height:1.3;font:inherit;display:block}
+.t textarea:hover{border-color:var(--line);background:var(--inp)}
+.t textarea.ml{field-sizing:content;min-height:26px}
+#v_t tr.q td{background:var(--q);font-weight:600}#v_t tr.tt td{background:#1d2330;color:#fff;font-weight:700}
+#v_t a{color:var(--acc);text-decoration:none}
+.warn{background:var(--warn)!important;border-color:var(--warnb)!important}
+.iconbtn{display:flex!important;align-items:center;padding:8px 9px!important;color:#c9d0e0!important}
+.iconbtn:hover{color:#fff!important}
+.seg{display:flex;gap:3px;margin:0 0 12px;padding:3px;background:var(--btn);border-radius:8px;width:max-content;max-width:100%;flex-wrap:wrap}
+.seg button{border:0;background:none;color:var(--mut);padding:6px 14px;border-radius:6px;cursor:pointer;font:inherit}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.18);font-weight:600}
+.lnk{float:right;display:flex;gap:12px}.lnk a{text-decoration:none}
+.clr{position:relative}.clr input{padding-right:28px}
+.clrbtn{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--mut);cursor:pointer;font-size:14px;line-height:1;padding:4px 6px;border-radius:4px}
+.clrbtn:hover{color:var(--ink);background:var(--btn)}
+.pbadge{background:#e6a817;color:#1c2230;font-size:10.5px;font-weight:700;letter-spacing:.8px;padding:2px 8px;border-radius:10px;margin-right:12px;white-space:nowrap}
+.jhead{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1d2330;padding-bottom:2mm;margin-bottom:3mm}
+.jhead h1{margin:0;font-size:17px;letter-spacing:2px}.jhead .jp{text-align:right;line-height:1.5}
+.jcomp{font-size:9.5px;margin-bottom:2mm;color:#333}
+.jt td{font-size:8.5px;padding:1px 3px;height:5mm}.jt th{font-size:8px}
+.jtot{margin-top:4mm;margin-left:auto;width:96mm;border-collapse:collapse}.jtot td{padding:1px 5px;font-size:9px}.jtot td:last-child{text-align:right;white-space:nowrap}
+.jtot tr.g td{background:#e9ecf1;border-top:1.5px solid #1d2330;font-weight:700;font-size:10.5px;padding:2px 5px}
+.t th.srt{cursor:pointer;user-select:none;white-space:nowrap}
+.t th.srt:hover{color:var(--ink)}
+.xbtn{background:none;border:0;color:#b3261e;cursor:pointer;font-size:15px;padding:2px 6px}
+.page{background:#fff;width:210mm;margin:0 auto 16px;overflow:hidden;box-shadow:0 1px 8px rgba(0,0,0,.2)}
+.copy{height:146mm;padding:6mm 10mm 4mm;display:flex;flex-direction:column;position:relative;font:10.5px/1.3 Arial,Helvetica,sans-serif;color:#111}
+.page:not(.full) .copy:first-child{border-bottom:1px dashed #aaa}
+.page.one .copy{border-bottom:0}
+.page.full .copy{height:296mm;padding:12mm 13mm 9mm}
+.copy .pg{position:absolute;right:10mm;top:2.5mm;font-size:9px;color:#666}
+.cont{margin-top:auto;text-align:right;font-style:italic;color:#555;padding-top:3mm}
+.iv-top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1d2330;padding-bottom:2mm}
+.iv-top h1{display:inline;font-size:24px;letter-spacing:5px;margin:0;font-weight:700;line-height:1}
+.iv-top .tag{font-size:10px;font-weight:700;border:1.5px solid #1d2330;padding:1px 8px;margin-left:10px;letter-spacing:1.5px;vertical-align:middle}
+.iv-meta{text-align:right;line-height:1.5}
+.iv-meta .no{font-size:15px;font-weight:700}
+.iv-meta span{color:#555}
+.iv-parties{display:grid;grid-template-columns:1fr 1fr;gap:5mm;margin-top:3mm}
+.pbox{border:1px solid #9aa1ad;border-radius:2mm;padding:2mm 3mm;min-height:20mm}
+.pbox .lbl{font-size:8px;letter-spacing:2.5px;color:#666;font-weight:700;margin-bottom:1mm}
+.pbox .nm{font-weight:700;font-size:12px;margin-bottom:1mm;min-height:14px}
+.pbox .kv{display:grid;grid-template-columns:auto 1fr;gap:0 6px}
+.pbox .kv span:nth-child(odd){color:#666}
+.pbox img.lm{height:8mm;vertical-align:middle;margin-right:2mm}.pbox img.lt{height:5.5mm;vertical-align:middle}
+.ib{width:100%;border-collapse:collapse;margin-top:3mm}
+.ib th{background:#e9ecf1;border:1px solid #9aa1ad;padding:2px 4px;font-weight:700;font-size:9.5px}
+.ib td{border:1px solid #c9cdd5;padding:1px 5px;height:4.9mm}
+.ib td.n{text-align:right;font-variant-numeric:tabular-nums}.ib td.c{text-align:center}
+.iv-sum{display:grid;grid-template-columns:1fr 64mm;gap:5mm;margin-top:3mm;align-items:start}
+.iv-words{font-style:italic;line-height:1.55;padding-top:1mm}
+.iv-words b{font-style:normal;font-weight:700}
+.iv-tot{border-collapse:collapse;width:100%}
+.iv-tot td{padding:1px 5px}
+.iv-tot td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.iv-tot tr.g td{background:#e9ecf1;border-top:1.5px solid #1d2330;font-weight:700;font-size:12px;padding:2px 5px}
+.iv-foot{margin-top:auto;display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:6mm;align-items:end}
+.iv-foot .bank{line-height:1.5;font-size:9.5px}.iv-foot .bank span{color:#666}
+.sg{border-top:1px solid #333;padding-top:1mm;font-size:9px;color:#444;text-align:center;margin-top:8mm}
+.sg b{color:#111;font-size:10px;display:block;margin-top:.5mm}
+.st{padding:12mm 14mm;min-height:297mm}
+.st h1{text-align:center;font-size:22px;margin:0 0 6mm}
+.st .hd{display:flex;justify-content:space-between;gap:10mm;margin-bottom:6mm}
+.st .hd>div{flex:1}.st .hd .kv{display:grid;grid-template-columns:auto 1fr;gap:1px 6px}
+@page{size:A4;margin:0}
+@media print{
+ header,.noprint,dialog{display:none!important}
+ html,body{background:#fff!important;color:#000;height:auto!important;overflow:visible!important;display:block!important}
+ #scroller{overflow:visible!important}
+ main{max-width:none;margin:0;padding:0}
+ .card{border:0;padding:0;margin:0}
+ .tab{display:none!important}
+ body.p-inv #tab-prev,body.p-stock #tab-sprev,body.p-journal #tab-vat{display:block!important}
+ *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .sheet,.page{margin:0;border:0;width:210mm;box-shadow:none}
+ .page{break-after:page;page-break-after:always}
+ #invSheet .page:last-child,#stockSheet .page:last-child,#journalSheet .page:last-child{break-after:auto;page-break-after:auto}
+ body.p-inv #stockSheet,body.p-stock #invSheet{display:none}
+}
+</style>
+</head>
+<body>
+<header>
+ <div class="brand" title="Фактури — ЯНУС ООД"><img class="bm" src="logo-mark-w.png" alt=""><img class="bt" src="logo-text-w.png" alt="ЯНУС ООД"></div>
+ <span id="pbadge" class="pbadge hide" title="Данните са във флашката. Синхронизирайте ги с основното приложение.">ПРЕНОСИМА ВЕРСИЯ</span>
+ <button data-t="inv" data-g="inv" class="on">Фактура</button>
+ <button data-t="stock" data-g="stock">Складова разписка</button>
+ <button data-t="reg" data-g="issued">Издадени документи</button>
+ <button data-t="vat" data-g="vat">Справка ДДС</button>
+ <button data-t="clients" data-g="clients">Клиенти</button>
+ <button data-t="sups" data-g="sups">Доставчици</button>
+ <button data-t="arts" data-g="arts">Артикули</button>
+ <span style="flex:1"></span>
+ <button class="iconbtn" id="prepBtn" title="Подготви флашка (преносима версия)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="9" width="11" height="13" rx="2"/><path d="M9.5 9V3.5h5V9"/><path d="M12 19v-6M9.5 15.5 12 13l2.5 2.5"/></svg></button>
+ <button class="iconbtn" id="syncBtn" title="Синхронизирай от флашката (преносима версия)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="9" width="11" height="13" rx="2"/><path d="M9.5 9V3.5h5V9"/><path d="M10.5 6h.01M13.5 6h.01"/><path d="M9.5 15.5h5M12 13v5"/></svg></button>
+ <button data-t="set" data-g="set" class="iconbtn" id="setBtn" title="Настройки"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+ <button id="themeBtn" class="iconbtn" title="Светъл / тъмен режим"></button>
+</header>
+<div id="upd_bar" class="hide noprint"></div>
+<div id="scroller">
+<main>
+
+<section class="tab" id="tab-inv">
+ <div class="seg noprint" data-seg="inv"></div>
+ <div class="card noprint">
+  <div id="i_edit" class="err warn hide"><span id="i_editTxt"></span> <button class="b g s" id="i_cancelEdit">Отказ</button></div>
+  <div class="grid" style="grid-template-columns:2fr 1fr 1fr 1fr">
+   <div><label>Получател (клиент) <span class="lnk"><a href="#" id="i_editClient" class="hide">редактирай</a><a href="#" id="i_addClient">+ нов клиент</a></span></label><div class="clr"><input id="i_client" data-search="clients" autocomplete="off" placeholder="Търсене по име, ЕИК, адрес…"><button type="button" class="clrbtn hide" id="i_clientX" title="Изчисти">✕</button></div></div>
+   <div><label>Фактура №</label><input id="i_no" inputmode="numeric" autocomplete="off" title="Номерът се печата с водещи нули (10 цифри)"></div>
+   <div><label>Дата на издаване</label><input id="i_date" type="date"></div>
+   <div><label>Дата на данъчно събитие <a href="#" id="i_taxReset" class="hide" style="float:right;text-decoration:none" title="Върни датата на издаване">= издаването</a></label><input id="i_tax" type="date" title="По подразбиране е равна на датата на издаване; може да се промени"></div>
+  </div>
+  <div id="i_clientInfo" class="mut" style="margin:6px 0"></div>
+  <div class="grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:6px">
+   <div><label>Плащане</label><select id="i_pay"></select></div>
+   <div><label>Съставител</label><select id="i_comp"></select></div>
+   <div><label>Оригинал / копие</label><select id="i_orig"><option>ОРИГИНАЛ</option><option value="">(без надпис)</option></select></div>
+  </div>
+  <div class="scroll" style="max-height:none;margin-top:10px">
+  <table class="t" id="i_items"><thead><tr><th style="width:26px">№</th><th>Наименование на стоката / услугата</th><th style="width:90px">Код</th><th class="n" style="width:90px">Количество</th><th class="n" style="width:100px">Ед. цена</th><th class="n" style="width:100px">Стойност</th><th style="width:30px"></th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="row" style="margin-top:6px"><button class="b g s" id="i_addRow">+ Добави ред</button><span class="mut" id="i_rowInfo"></span></div>
+  <div class="tot"><div class="mut">Данъчна основа<b id="t_base"></b></div><div class="mut"><span id="t_vatl">ДДС</span><b id="t_vat"></b></div><div class="mut">Сума за плащане<b id="t_tot"></b></div></div>
+  <div id="i_msg"></div>
+  <div class="row" style="margin-top:10px">
+   <button class="b g" id="i_prev">Преглед →</button>
+   <button class="b" id="i_save">Печат и запис</button>
+   <button class="b g" id="i_print">Само печат</button>
+   <button class="b g" id="i_saveonly">Само запис</button>
+   <button class="b g" id="i_clear">Изчисти</button>
+   <span class="mut">„Печат и запис“ записва фактурата в Издадени фактури, отпечатва я, изчиства формата и вдига номера с 1. <b>Ctrl+P</b> печат и запис · <b>Ctrl+S</b> само запис · <b>Ctrl+N</b> нова фактура</span>
+  </div>
+ </div>
+ </section>
+
+<section class="tab hide" id="tab-prev">
+ <div class="seg noprint" data-seg="inv"></div>
+ <div class="card noprint">
+  <div class="row">
+   <button class="b g" id="p_back">← Към формата</button>
+   <button class="b" id="p_save">Печат и запис</button>
+   <button class="b g" id="p_print">Само печат</button>
+   <button class="b g" id="p_pdf">Запази като PDF</button>
+   <span class="mut" id="p_info"></span>
+  </div>
+  <div id="p_msg"></div>
+ </div>
+ <div class="sheet" id="invSheet"></div>
+</section>
+
+<section class="tab hide" id="tab-stock">
+ <div class="seg noprint" data-seg="stock"></div>
+ <div class="card noprint">
+  <div id="s_edit" class="err warn hide"><span id="s_editTxt"></span> <button class="b g s" id="s_cancelEdit">Отказ</button></div>
+  <div class="grid" style="grid-template-columns:2fr 1fr 1fr">
+   <div><label>Доставчик <span class="lnk"><a href="#" id="s_editSup" class="hide">редактирай</a><a href="#" id="s_addSup">+ нов доставчик</a></span></label><div class="clr"><input id="s_sup" data-search="sups" autocomplete="off" placeholder="Търсене по име, ЕИК, адрес…"><button type="button" class="clrbtn hide" id="s_supX" title="Изчисти">✕</button></div></div>
+   <div><label>Дата</label><input id="s_date" type="date"></div>
+   <div><label>Съставител</label><select id="s_comp"></select></div>
+  </div>
+  <div id="s_supInfo" class="mut" style="margin:6px 0"></div>
+  <div class="scroll" style="max-height:none;margin-top:10px">
+  <table class="t" id="s_items"><thead><tr><th style="width:26px">№</th><th>Наименование на стоката</th><th style="width:90px">Мярка</th><th class="n" style="width:90px">Количество</th><th class="n" style="width:100px">Ед. цена</th><th class="n" style="width:100px">Стойност</th><th style="width:30px"></th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="row" style="margin-top:6px"><button class="b g s" id="s_addRow">+ Добави ред</button><button class="b g s" id="s_addArt">+ Нов артикул</button><span class="mut" id="s_rowInfo"></span></div>
+  <div class="tot"><div class="mut">Всичко<b id="st_tot"></b></div></div>
+  <div id="s_msg"></div>
+  <div class="row" style="margin-top:10px">
+   <button class="b g" id="s_prev">Преглед →</button>
+   <button class="b" id="s_save">Печат и запис</button>
+   <button class="b g" id="s_print">Само печат</button>
+   <button class="b g" id="s_saveonly">Само запис</button>
+   <button class="b g" id="s_clear">Изчисти</button>
+   <span class="mut">„Печат и запис“ записва разписката в Издадени разписки, отпечатва я, изчиства формата и вдига номера с 1. <b>Ctrl+P</b> печат и запис · <b>Ctrl+S</b> само запис · <b>Ctrl+N</b> нова разписка</span>
+  </div>
+ </div>
+</section>
+
+<section class="tab hide" id="tab-sprev">
+ <div class="seg noprint" data-seg="stock"></div>
+ <div class="card noprint">
+  <div class="row">
+   <button class="b g" id="sp_back">← Към формата</button>
+   <button class="b" id="sp_save">Печат и запис</button>
+   <button class="b g" id="sp_print">Само печат</button>
+   <button class="b g" id="sp_pdf">Запази като PDF</button>
+   <span class="mut" id="sp_info"></span>
+  </div>
+  <div id="sp_msg"></div>
+ </div>
+ <div class="sheet" id="stockSheet"></div>
+</section>
+
+<section class="tab hide" id="tab-sreg">
+ <div class="seg noprint" data-seg="issued"></div>
+ <div class="card">
+  <h2>Издадени складови разписки</h2>
+  <div class="row" style="margin-bottom:8px">
+   <div style="width:260px"><label>Търсене (доставчик, №, булстат, артикул)</label><input id="sr_q"></div>
+   <div style="width:110px"><label>Година</label><select id="sr_y"></select></div>
+   <div style="width:140px"><label>Месец</label><select id="sr_m"></select></div>
+   <button class="b g" id="sr_csv">Експорт CSV</button>
+   <span style="flex:1"></span>
+   <div class="mut" id="sr_sum" style="text-align:right"></div>
+  </div>
+  <div class="scroll"><table class="t" id="sr_t"><thead><tr><th>Дата</th><th>Доставчик</th><th>Булстат</th><th>Артикули</th><th class="n">Всичко</th><th></th></tr></thead><tbody></tbody></table></div>
+ </div>
+</section>
+
+<section class="tab hide" id="tab-reg">
+ <div class="seg noprint" data-seg="issued"></div>
+ <div class="card">
+  <h2>Издадени фактури</h2>
+  <div class="row" style="margin-bottom:8px">
+   <div style="width:260px"><label>Търсене (клиент, №, булстат, основание)</label><input id="r_q"></div>
+   <div style="width:110px"><label>Година</label><select id="r_y"></select></div>
+   <div style="width:140px"><label>Месец</label><select id="r_m"></select></div>
+   <button class="b g" id="r_add">+ Ръчен запис</button>
+   <button class="b g" id="r_csv">Експорт CSV</button>
+   <span style="flex:1"></span>
+   <div class="mut" id="r_sum" style="text-align:right"></div>
+  </div>
+  <div class="scroll"><table class="t" id="r_t"><thead><tr><th>Дата</th><th>№</th><th>Клиент</th><th>№ по ЗДДС</th><th>Булстат</th><th>Основание</th><th class="n">Ст-ст</th><th class="n">ДДС</th><th class="n">Общо</th><th>Плащане</th><th></th></tr></thead><tbody></tbody></table></div>
+ </div>
+</section>
+
+<section class="tab hide" id="tab-vat">
+ <div class="card noprint">
+  <h2>Справка ДДС по месеци</h2>
+  <div class="row" style="margin-bottom:8px"><div style="width:110px"><label>Година</label><select id="v_y"></select></div><button class="b g" id="v_csv">Експорт CSV</button><span class="mut">Кликнете на месец, за да видите фактурите му.</span></div>
+  <table class="t" id="v_t"><thead><tr><th>Период</th><th class="n">Фактури</th><th class="n">Данъчна основа</th><th class="n">ДДС</th><th class="n">Общо</th></tr></thead><tbody></tbody></table>
+ </div>
+ <div class="card noprint">
+  <h2>Дневник на продажбите</h2>
+  <div class="row" style="margin-bottom:8px">
+   <div style="width:110px"><label>Година</label><select id="j_y"></select></div>
+   <div style="width:150px"><label>Месец (данъчен период)</label><select id="j_m"></select></div>
+   <button class="b" id="j_print">Печат</button>
+   <button class="b g" id="j_pdf">Запази като PDF</button>
+   <button class="b g" id="j_csv">Експорт CSV (Excel)</button>
+   <span class="mut" id="j_info"></span>
+  </div>
+  <div class="mut">Справка за счетоводителя: всички издадени фактури за месеца по номер, с данъчна основа, ДДС и общо. CSV се отваря директно в Excel. Файлът не е в официалния формат за подаване към НАП — за него използвайте счетоводната си програма.</div>
+  <div id="j_msg"></div>
+ </div>
+ <div class="sheet" id="journalSheet"></div>
+</section>
+
+<section class="tab hide" id="tab-clients"><div class="card"><h2>Клиенти</h2><div id="l_clients"></div></div></section>
+<section class="tab hide" id="tab-sups"><div class="card"><h2>Доставчици</h2><div id="l_sups"></div></div></section>
+<section class="tab hide" id="tab-arts"><div class="card"><h2>Артикули и основания</h2><div id="l_arts"></div></div></section>
+
+<section class="tab hide" id="tab-set">
+ <div class="card"><h2>Данни за фирмата (Доставчик във фактурата и „Издава“ в разписката)</h2>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
+   <div><label>Фирма</label><input data-c="name"></div><div><label>Адрес</label><input data-c="addr"></div>
+   <div><label>№ по ЗДДС</label><input data-c="vat"></div><div><label>ЕИК / Булстат</label><input data-c="eik"></div>
+   <div><label>МОЛ</label><input data-c="mol"></div><div><label>Банка</label><input data-c="bank"></div>
+   <div><label>BIC код</label><input data-c="bic"></div><div><label>IBAN</label><input data-c="iban"></div>
+   <div><label>Следващ номер на фактура</label><input id="c_next" type="number" step="1"></div>
+   <div><label>ДДС ставка %</label><input id="c_rate" type="number" step="0.1"></div>
+  </div>
+  <div style="margin-top:10px"><label style="display:inline"><input type="checkbox" id="c_logo"> Показвай логото във фактурата</label></div>
+ </div>
+ <div class="card"><h2>Списъци (по един ред на запис)</h2>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+   <div><label>Мерни единици (код)</label><textarea id="x_units" rows="9"></textarea></div>
+   <div><label>Начини на плащане</label><textarea id="x_pays" rows="9"></textarea></div>
+   <div><label>Съставители</label><textarea id="x_comps" rows="9"></textarea></div>
+  </div>
+ </div>
+ <div class="card hide" id="pt_info"><h2>Преносима версия</h2>
+  <div id="pt_infotxt"></div>
+ </div>
+ <div class="card hostonly" id="pt_card"><h2>Преносима версия (за флашка)</h2>
+  <div class="mut" style="margin-bottom:8px">Подготвя флашка за издаване на фактури на всеки компютър с Windows (XP, 7, 8, 10, 11): копира програмата <b>Faktura-Lite</b> и текущите списъци с клиенти, доставчици и артикули, и създава пряка връзка <b>Фактури</b> в началото на флашката. Може да се избере само цял диск (флашка), не папка. Фактурите, издадени до сега, не се копират. Номерацията продължава от текущия следващ номер. Същото прави и бутонът в горното меню. При връщане в офиса ги прехвърляте с „Синхронизация“ по-долу.</div>
+  <button class="b g" id="pt_make">Подготви преносима версия…</button>
+  <div id="pt_msg"></div>
+ </div>
+ <div class="card" id="sy_card"><h2>Синхронизация от преносима версия</h2>
+  <div class="mut" style="margin-bottom:8px">Включете флашката и натиснете „Синхронизирай от флашката“. Приложението показва преглед и добавя само новите фактури, разписки, клиенти, доставчици и артикули. Преди това прави автоматичен архив. След синхронизацията подгответе флашката наново („Подготви преносима версия“), за да започне от новия номер.</div>
+  <div class="row">
+   <button class="b" id="sy_auto">Синхронизирай от флашката</button>
+   <label class="b g" style="cursor:pointer;color:var(--ink);display:inline-block;margin:0">Избери файла ръчно…<input type="file" id="sy_file" accept=".json,application/json" class="hide"></label>
+  </div>
+  <div class="mut" style="margin-top:6px">„Синхронизирай от флашката“ сам търси флашката, която сте подготвили (и всеки включен носител с папка invoice-data). Ако не я намери, ще ви помоля да изберете файла.</div>
+  <div id="sy_msg"></div>
+ </div>
+ <div class="card" id="xl_card"><h2>Импорт от Excel</h2>
+  <div class="mut" style="margin-bottom:8px">Добавя нови клиенти, доставчици, артикули и издадени фактури от по-нова версия на Excel файла с фактурите (.xlsx или .xlsm). Преди да добави каквото и да е, показва преглед. Съществуващите записи не се променят и не се дублират.</div>
+  <label class="b g" style="cursor:pointer;color:var(--ink);display:inline-block;margin:0">Избери Excel файл…<input type="file" id="xl_file" accept=".xlsx,.xlsm" class="hide"></label>
+  <div id="xl_msg"></div>
+ </div>
+ <div class="card"><h2>За програмата</h2>
+  <div class="mut" id="ab_txt" style="line-height:1.6;word-break:break-all"></div>
+  <div class="row" style="margin-top:8px"><button class="b g" id="ab_copy">Копирай информация за поддръжка</button><button class="b g" id="up_check">Провери за обновления</button>
+   <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="up_auto"> Проверявай автоматично при стартиране</label></div>
+  <div id="up_msg"></div>
+  <div class="mut" style="margin-top:6px">Обновленията се теглят от GitHub (pachobg2/invoice) и се проверяват с контролна сума. Данните в „invoice-data“ не се променят.</div>
+  <div id="ab_msg"></div>
+  <details style="margin-top:8px"><summary style="cursor:pointer">Какво е ново</summary><div id="ab_log" class="mut"></div></details>
+ </div>
+ <div class="card"><h2>Резервно копие</h2>
+  <div class="row"><button class="b g" id="bk_exp">Експорт (JSON)</button>
+  <label class="b g" style="margin:0;cursor:pointer;color:var(--ink)">Импорт<input type="file" id="bk_imp" accept=".json" class="hide"></label>
+  <button class="b r" id="bk_reset">Изтрий всички данни</button></div>
+  <div id="bk_host" class="hide" style="margin-top:10px"><div class="mut" id="bk_info" style="margin-bottom:8px"></div><div class="row"><button class="b g" id="bk_now">Архивирай сега</button><button class="b g" id="bk_open">Отвори папката с данните</button></div></div>
+  <div class="mut" style="margin-top:6px">Всичко се пази в папката „invoice-data“ до програмата. За да преместите приложението на друг компютър, копирайте invoice.exe заедно с тази папка. „Експорт / Импорт“ е допълнителен начин за прехвърляне на данните.</div>
+ </div>
+</section>
+</main>
+</div>
+
+<datalist id="dl_clients"></datalist><datalist id="dl_sups"></datalist><datalist id="dl_arts"></datalist><datalist id="dl_units"></datalist>
+<dialog id="dlg"><h3 id="dlg_t"></h3><form method="dialog" id="dlg_f"><div id="dlg_b"></div><div class="row" style="justify-content:flex-end;margin-top:12px"><button class="b g" value="x" id="dlg_x">Отказ</button><button class="b" value="ok" id="dlg_ok">Запази</button></div></form></dialog>
+
+<script src="app.js"></script>
+</body>
+</html>

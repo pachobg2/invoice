@@ -1,0 +1,15 @@
+# Only the program sources are published. Everything else in this folder is private data or build output.
+/*
+!/.gitignore
+!/README.md
+!/build.ps1
+!/release.ps1
+!/faktura/
+!/host/
+!/lite/
+
+# build output inside the published folders
+bin/
+obj/
+host/lite-bin/
+*.bak

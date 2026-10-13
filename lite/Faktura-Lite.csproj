@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- "Lite" edition: targets .NET Framework 2.0 so it runs on Windows XP / Vista / 7 / 8 / 10 / 11.
+       app.config lets it use the 4.x runtime when present (Win 8+), and the 2.0/3.5 runtime that XP/7 have. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net20</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <AssemblyName>invoice-lite</AssemblyName>
+    <RootNamespace>FakturaLite</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Version>1.1.5</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net20" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <EmbeddedResource Include="..\faktura\logo-mark.png" LogicalName="logo-mark.png" />
+    <EmbeddedResource Include="..\faktura\logo-text.png" LogicalName="logo-text.png" />
+  </ItemGroup>
+</Project>

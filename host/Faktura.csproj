@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Faktura</AssemblyName>
+    <RootNamespace>Faktura</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Version>2.6.0</Version>
+    <Product>Фактури</Product>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\faktura\*.*" Exclude="..\faktura\_*.*" LogicalName="web/%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup Condition="Exists('lite-bin\invoice-lite.exe')">
+    <EmbeddedResource Include="lite-bin\invoice-lite.exe" LogicalName="lite/invoice-lite.exe" />
+    <EmbeddedResource Include="lite-bin\invoice-lite.exe.config" LogicalName="lite/invoice-lite.exe.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2792.45" />
+  </ItemGroup>
+</Project>

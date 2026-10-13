@@ -207,6 +207,33 @@ class MainForm : Form
 "  Приложението само намира данните във флашката (или ви моли да изберете файла invoice-data\\data.json).\r\n\r\n" +
 "Ако преместите папката, пряката връзка продължава да работи, стига да стоят заедно.\r\n";
 
+    [DllImport("shell32.dll")] static extern uint SHFormatDrive(IntPtr hwnd, uint drive, uint fmtId, uint options);
+
+    // entries in the root of a drive, not counting the hidden system folders
+    static int CountItems(string root)
+    {
+        try { return Directory.GetFileSystemEntries(root).Count(p => { var n = Path.GetFileName(p); return !n.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase) && !n.Equals("$RECYCLE.BIN", StringComparison.OrdinalIgnoreCase); }); }
+        catch { return 0; }
+    }
+
+    // a USB stick was plugged in: tell the page (after a moment, the volume needs time to mount)
+    System.Windows.Forms.Timer driveTimer;
+    protected override void WndProc(ref Message m)
+    {
+        base.WndProc(ref m);
+        if (m.Msg == 0x0219 && (long)m.WParam == 0x8000) ArmDriveTimer();   // WM_DEVICECHANGE / DBT_DEVICEARRIVAL
+    }
+
+    void ArmDriveTimer()
+    {
+        if (driveTimer == null)
+        {
+            driveTimer = new System.Windows.Forms.Timer { Interval = 2500 };
+            driveTimer.Tick += (s, e) => { driveTimer.Stop(); try { web?.CoreWebView2?.PostWebMessageAsJson("{\"ev\":\"drive\"}"); } catch { } };
+        }
+        driveTimer.Stop(); driveTimer.Start();
+    }
+
     /* Drives that may be prepared: removable drives (USB sticks); if there are none, external (non-system) disks. */
     List<(string root, string label, double freeGb, double totalGb, bool removable)> ListDrives()
     {
@@ -410,8 +437,30 @@ class MainForm : Form
                     };
                     break;
                 case "listDrives":
-                    result = ListDrives().Select(d => new { d.root, d.label, d.freeGb, d.totalGb, d.removable }).ToList();
+                    result = ListDrives().Select(d => new { d.root, d.label, d.freeGb, d.totalGb, d.removable, items = CountItems(d.root) }).ToList();
                     break;
+                case "formatDrive":
+                    {
+                        var chosen = arg["drive"]!.GetValue<string>();
+                        var drive = ListDrives().FirstOrDefault(d => string.Equals(d.root, chosen, StringComparison.OrdinalIgnoreCase));
+                        if (drive.root == null) throw new Exception("Избраното устройство не е в списъка на флашките.");
+                        if (!drive.removable) throw new Exception("Форматирането е позволено само за преносими флашки.");
+                        if (TestRoot != null && Environment.GetEnvironmentVariable("FAKTURA_TEST_DRIVES") != null)
+                        {   // tests only: a simulated drive is just a folder - empty it
+                            foreach (var en in Directory.GetFileSystemEntries(drive.root)) { if (Directory.Exists(en)) Directory.Delete(en, true); else File.Delete(en); }
+                            result = new { formatted = true }; break;
+                        }
+                        char letter = char.ToUpperInvariant(drive.root[0]);
+                        if (letter < 'A' || letter > 'Z') throw new Exception("Непознато устройство.");
+                        // the standard Windows format dialog (works without administrator rights for USB sticks)
+                        SHFormatDrive(Handle, (uint)(letter - 'A'), 0xFFFF, 0);
+                        for (int i = 0; i < 40; i++) { try { if (new DriveInfo(drive.root).IsReady) break; } catch { } await Task.Delay(250); }
+                        if (CountItems(drive.root) > 0) { result = new { formatted = false }; break; }   // cancelled or not formatted
+                        try { new DriveInfo(drive.root).VolumeLabel = "INVOICE"; }
+                        catch { try { Process.Start(new ProcessStartInfo("cmd.exe", $"/c label {letter}: INVOICE") { CreateNoWindow = true, UseShellExecute = false })?.WaitForExit(8000); } catch { } }
+                        result = new { formatted = true };
+                        break;
+                    }
                 case "makePortable":
                     {
                         var json = arg["state"]!.GetValue<string>();
@@ -468,6 +517,7 @@ class MainForm : Form
                         result = File.ReadAllText(path);
                         break;
                     }
+                case "testDriveArrival": if (TestRoot != null) ArmDriveTimer(); break;   // tests only
                 case "updateCheck": result = await Updater.Check(); break;
                 case "updateInstall":
                     await Updater.Install(pct => { try { web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { ev = "upd", pct })); } catch { } });

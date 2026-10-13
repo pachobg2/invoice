@@ -79,7 +79,7 @@ function freshState() {
 }
 const HOST = window.chrome && window.chrome.webview ? window.chrome.webview : null;
 let hostSeq = 0; const hostPending = {};
-if (HOST) HOST.addEventListener('message', e => { const m = e.data || {}; if (m.ev === 'upd') { updProgress(m.pct); return; } const p = hostPending[m.id]; if (!p) return; delete hostPending[m.id]; m.error ? p.rej(new Error(m.error)) : p.res(m.result); });
+if (HOST) HOST.addEventListener('message', e => { const m = e.data || {}; if (m.ev === 'upd') { updProgress(m.pct); return; } if (m.ev === 'drive') { driveCheck('arrive'); return; } const p = hostPending[m.id]; if (!p) return; delete hostPending[m.id]; m.error ? p.rej(new Error(m.error)) : p.res(m.result); });
 const hostCall = (cmd, arg) => new Promise((res, rej) => {
   if (!HOST) return rej(new Error('no host'));
   const id = ++hostSeq; hostPending[id] = { res, rej }; HOST.postMessage({ id, cmd, arg });
@@ -1246,10 +1246,15 @@ async function prepareFlash() {
     const drives = await hostCall('listDrives');
     if (!drives.length) { await tell('Не намерих флашка. Включете я и опитайте отново.'); return; }
     const labels = drives.map(d => `${d.root} — ${d.label || 'без име'} · ${d.freeGb} GB свободни от ${d.totalGb} GB${d.removable ? '' : ' (външен диск)'}`.replace(/\s+/g, ' '));
-    const o = await ask('Подготви флашка', [{ k: 'd', label: 'Избери флашката (подготвя се целият диск — не може да се избира папка)', type: 'select', opts: labels }], { d: labels[0] });
+    const o = await ask('Подготви флашка', [{ k: 'd', label: 'Избери флашката (подготвя се целият диск — не може да се избира папка)', type: 'select', opts: labels }, { k: 'f', label: 'Форматирай флашката (изтрива ВСИЧКО в нея) и я наименувай INVOICE — така тя е само за тази програма', type: 'check' }], { d: labels[0], f: true });
     if (!o) return;
     saveNow();
-    const st = buildPortableState(), drive = drives[labels.indexOf(o.d)].root;
+    const dr = drives[labels.indexOf(o.d)], st = buildPortableState(), drive = dr.root;
+    if (o.f) {
+      if (!await confirmHtml('Форматиране на флашката', `<div class="err"><b>Внимание!</b> Всичко на <b>${esc(dr.root)}</b> (${esc(dr.label || 'без име')}, ${dr.totalGb} GB${dr.items ? `, ${dr.items} папки/файла в началото на диска` : ', диска изглежда празен'}) ще бъде <b>изтрито безвъзвратно</b>.</div><p>Ще се отвори стандартният прозорец на Windows за форматиране — натиснете „Старт“. След това флашката ще се казва <b>INVOICE</b> и програмата ще я разпознава автоматично при включване.</p>`, 'Форматирай')) return;
+      const fr = await hostCall('formatDrive', { drive });
+      if (!fr || !fr.formatted) { await tell('Флашката не беше форматирана и не е променена.'); return; }
+    }
     const r = await hostCall('makePortable', { state: JSON.stringify(st), drive });
     if (!r) return;                                   // cancelled in the overwrite question
     S.portables = (S.portables || []).filter(x => x.path !== r.path).concat([{ id: st.portable.id, created: st.portable.created, path: r.path }]); saveNow();
@@ -1364,6 +1369,7 @@ $('#syncBtn').onclick = syncFromDrive;
 /* ---------------- about / version ---------------- */
 const LITE_VERSION = '1.1.5';   // keep in sync with lite\Faktura-Lite.csproj
 const CHANGELOG = [
+  ['2.7.0', '13.10.2026', ['Подготовка на флашка с форматиране и име INVOICE (само за тази програма)', 'Автоматично откриване на флашката при включване: предлага синхронизиране, ако има нови документи, и обновяване на Lite, ако е по-стар; опция за изключване в Настройки']],
   ['2.6.1', '13.10.2026', ['Проверка за обновления при всяко стартиране (може да се изключи в Настройки); при нова версия се показва предложение за обновяване']],
   ['2.6.0', '13.10.2026', ['Обновяване през интернет от GitHub (pachobg2/invoice): проверка, изтегляне с контролна сума и автоматичен рестарт; данните не се променят', 'Синхронизацията предлага обновяване на Lite във флашката', 'Програмата вече не носи вградени клиенти, артикули и фактури — стартира празна, данните са само в invoice-data', 'Lite: печатът е с по-големи полета (страницата е смалена до 93% и центрирана)']],
   ['2.5.4', '13.10.2026', ['Lite: печатът е с по-големи полета (страницата е смалена до 93% и центрирана) — повече разстояние от ляв и горен ръб']],
@@ -1455,6 +1461,36 @@ function updAutoCheck() {
   setTimeout(() => updCheck(false), 4000);
 }
 
+/* ---------------- flash drive: automatic detection when it is plugged in ---------------- */
+const drvPref = () => updPref().drive !== false;
+let drvBusy = false;
+const drvSeen = new Set();          // drive states already handled (no repeated questions for an unchanged drive at start-up)
+function drvNote(html) { updShow(`<span>${html}</span><button class="b g" id="upd_x">✕</button>`); $('#upd_x').onclick = () => updShow(''); setTimeout(() => { if ($('#upd_bar').innerText.includes('Флашка')) updShow(''); }, 9000); }
+async function driveCheck(trigger) {
+  if (!HOST || S.portable || !drvPref() || drvBusy || updBusy) return;
+  drvBusy = true;
+  try {
+    for (let i = 0; i < 30 && $('#dlg').open; i++) await new Promise(r => setTimeout(r, 2000));   // another question is on screen
+    const known = S.portables || [];
+    const found = (await hostCall('findPortable', { paths: known.map(k => k.path), ids: known.map(k => k.id) })).filter(c => c.id);
+    if (!found.length) return;
+    const pick = found[0], name = pick.drive.replace(/\\$/, '');
+    const j = JSON.parse(await hostCall('readFile', pick.path));
+    const P = syncPlan(j), lite = await hostCall('liteRefresh', { folder: pick.folder, apply: false });
+    const key = pick.path + '|' + pick.modified + '|' + P.total + '|' + (lite.have || '');
+    if (trigger === 'start' && drvSeen.has(key)) return;
+    drvSeen.add(key);
+    if (P.total || P.conflicts.length) await runSync(j, pick.path);
+    if (lite.exists && lite.newer) await liteRefreshOffer(pick.folder);
+    else if (!P.total && !P.conflicts.length) drvNote(`Флашка ${esc(name)}: няма нови документи за синхронизиране${lite.exists ? `, Lite е актуален (${esc((lite.have || '').replace(/\.0$/, ''))})` : ''}.`);
+  } catch (e) { /* a drive that cannot be read is not worth a message */ }
+  finally { drvBusy = false; }
+}
+function drvSettings() {
+  const c = $('#dv_auto'); if (!c) return;
+  c.checked = drvPref(); c.onchange = () => updSet({ drive: c.checked });
+}
+
 /* ---------------- boot ---------------- */
 (async () => {
   await load();
@@ -1466,6 +1502,6 @@ function updAutoCheck() {
   let t0 = 'inv'; try { t0 = sessionStorage.getItem('tab') || 'inv'; } catch (e) { }
   showTab(t0);
   window.__app = { slov, intWords, get S() { return S; }, HOST: !!HOST };
-  updAutoCheck();
+  updAutoCheck(); drvSettings(); if (HOST && !S.portable) setTimeout(() => driveCheck('start'), 7000);
   document.title = 'Фактури';
 })();

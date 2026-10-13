@@ -10,9 +10,15 @@ namespace FakturaLite
 
     /// <summary>A search drop-down under a text field: shows every item when the field is clicked, narrows the list (any part of the text, any word order)
     /// while typing, and is driven with the mouse or Up/Down/Enter/Esc. It never takes the keyboard focus from the field.</summary>
+    /// <summary>A list that never takes the keyboard focus, so clicking it does not make the text field lose focus (and close the list).</summary>
+    class NoFocusList : ListBox
+    {
+        public NoFocusList() { SetStyle(ControlStyles.Selectable, false); TabStop = false; }
+    }
+
     public class SuggestPopup
     {
-        readonly ListBox list = new ListBox();
+        readonly ListBox list = new NoFocusList();
         readonly ToolStripDropDown drop = new ToolStripDropDown();
         readonly MatchSource source;
         readonly Action<string> pick;
@@ -39,6 +45,10 @@ namespace FakturaLite
         }
 
         public bool Visible { get { return drop.Visible; } }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+        /// <summary>True while this list itself is the active window (some Windows versions make it active, which deactivates the main form).</summary>
+        public bool OwnsForeground { get { return drop.Visible && GetForegroundWindow() == drop.Handle; } }
 
         public static string[] Tokens(string q)
         {

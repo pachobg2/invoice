@@ -72,7 +72,14 @@ namespace FakturaLite
                 else if (clientPop.HandleKey(e.KeyCode)) { e.Handled = true; e.SuppressKeyPress = true; }
             };
             cbClient.Leave += delegate { clientPop.Hide(); };
-            Deactivate += delegate { clientPop.Hide(); artPop.Hide(); };
+            Deactivate += delegate
+            {
+                // the main window lost the focus: close the lists, unless one of them is what took it
+                BeginInvoke(new MethodInvoker(delegate
+                {
+                    if (clientPop != null && !clientPop.OwnsForeground && (artPop == null || !artPop.OwnsForeground)) { clientPop.Hide(); if (artPop != null) artPop.Hide(); }
+                }));
+            };
             cbClient.TextChanged += delegate { ShowClientInfo(); };
             cbClient.SelectedIndexChanged += delegate { ShowClientInfo(); FillPricesForClient(); };
             btnNewClient = new Button(); btnNewClient.Text = "+ нов клиент"; btnNewClient.Location = new Point(450, 27); btnNewClient.Size = new Size(96, 24); btnNewClient.Click += delegate { NewClient(); };

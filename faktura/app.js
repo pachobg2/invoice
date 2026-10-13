@@ -1247,15 +1247,10 @@ async function prepareFlash() {
     const drives = await hostCall('listDrives');
     if (!drives.length) { await tell('Не намерих флашка. Включете я и опитайте отново.'); return; }
     const labels = drives.map(d => `${d.root} — ${d.label || 'без име'} · ${d.freeGb} GB свободни от ${d.totalGb} GB${d.removable ? '' : ' (външен диск)'}`.replace(/\s+/g, ' '));
-    const o = await ask('Подготви флашка', [{ k: 'd', label: 'Избери флашката (подготвя се целият диск — не може да се избира папка)', type: 'select', opts: labels }, { k: 'f', label: 'Форматирай флашката (изтрива ВСИЧКО в нея) и я наименувай INVOICE — така тя е само за тази програма', type: 'check' }], { d: labels[0], f: true });
+    const o = await ask('Подготви флашка', [{ k: 'd', label: 'Избери флашката (подготвя се целият диск — не може да се избира папка)', type: 'select', opts: labels }], { d: labels[0] });
     if (!o) return;
     saveNow();
     const dr = drives[labels.indexOf(o.d)], st = buildPortableState(), drive = dr.root;
-    if (o.f) {
-      if (!await confirmHtml('Форматиране на флашката', `<div class="err"><b>Внимание!</b> Всичко на <b>${esc(dr.root)}</b> (${esc(dr.label || 'без име')}, ${dr.totalGb} GB${dr.items ? `, ${dr.items} папки/файла в началото на диска` : ', диска изглежда празен'}) ще бъде <b>изтрито безвъзвратно</b>.</div><p>Ще се отвори стандартният прозорец на Windows за форматиране — натиснете „Старт“. След това флашката ще се казва <b>INVOICE</b> и програмата ще я разпознава автоматично при включване.</p>`, 'Форматирай')) return;
-      const fr = await hostCall('formatDrive', { drive });
-      if (!fr || !fr.formatted) { await tell('Флашката не беше форматирана и не е променена.'); return; }
-    }
     const r = await hostCall('makePortable', { state: JSON.stringify(st), drive });
     if (!r) return;                                   // cancelled in the overwrite question
     S.portables = (S.portables || []).filter(x => x.path !== r.path).concat([{ id: st.portable.id, created: st.portable.created, path: r.path }]); saveNow();
@@ -1368,8 +1363,9 @@ $('#sy_auto').onclick = syncFromDrive;
 $('#syncBtn').onclick = syncFromDrive;
 
 /* ---------------- about / version ---------------- */
-const LITE_VERSION = '1.1.5';   // keep in sync with lite\Faktura-Lite.csproj
+const LITE_VERSION = '1.2.0';   // keep in sync with lite\Faktura-Lite.csproj
 const CHANGELOG = [
+  ['2.8.1', '13.10.2026', ['Премахнато е форматирането на флашката — подготовката само копира файловете и прави пряка връзка (автоматичното откриване, синхронизиране и обновяване остават)', 'Lite: при щракване върху полето за клиент или артикул се показва списък с всички, а при писане се търси по част от името (и по ЕИК/адрес за клиенти)']],
   ['2.8.0', '13.10.2026', ['Цялото меню е в странична лента, с икони за всички раздели']],
   ['2.7.1', '13.10.2026', ['Бутоните за флашката са в странична лента — по-големи, с надписи']],
   ['2.7.0', '13.10.2026', ['Подготовка на флашка с форматиране и име INVOICE (само за тази програма)', 'Автоматично откриване на флашката при включване: предлага синхронизиране, ако има нови документи, и обновяване на Lite, ако е по-стар; опция за изключване в Настройки']],

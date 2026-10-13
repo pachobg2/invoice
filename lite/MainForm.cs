@@ -18,9 +18,9 @@ namespace FakturaLite
         Panel bottomPnl; Label hintLbl;
         Button btnNewClient, btnClearClient, btnPrint, btnPreview, btnSave, btnClear;
         TextBox txtNo; DateTimePicker dtDate, dtTax; CheckBox chkTax;
-        DataGridView grid;
+        SuggestGrid grid;
+        SuggestPopup clientPop, artPop; TextBox artEdit; bool artShowing, artPicking;
         ListView lv; Button btnReprint, btnRePreview, btnCopy;
-        AutoCompleteStringCollection artSrc = new AutoCompleteStringCollection();
         bool loading;
 
         public MainForm(Store store)
@@ -60,7 +60,19 @@ namespace FakturaLite
             tpInv.Controls.Add(L("Получател (клиент)", 12, 10, 200));
             cbClient = new ComboBox(); cbClient.Location = new Point(12, 28); cbClient.Size = new Size(430, 22);
             cbClient.DropDownStyle = ComboBoxStyle.DropDown; cbClient.MaxDropDownItems = 30;
-            cbClient.AutoCompleteMode = AutoCompleteMode.SuggestAppend; cbClient.AutoCompleteSource = AutoCompleteSource.ListItems;
+            cbClient.AutoCompleteMode = AutoCompleteMode.None;
+            // own search list: shows every client when the field is clicked, narrows while typing (any part of the name, EIK, address...)
+            clientPop = new SuggestPopup(ClientMatches, delegate (string n) { cbClient.Text = n; cbClient.SelectionStart = n.Length; FillPricesForClient(); });
+            cbClient.MouseUp += delegate { ShowClientPop(true); };
+            cbClient.DropDown += delegate { BeginInvoke(new MethodInvoker(delegate { cbClient.DroppedDown = false; ShowClientPop(true); })); };
+            cbClient.TextUpdate += delegate { ShowClientPop(false); };
+            cbClient.KeyDown += delegate (object s, KeyEventArgs e)
+            {
+                if (e.KeyCode == Keys.Down && !clientPop.Visible) { ShowClientPop(true); e.Handled = true; e.SuppressKeyPress = true; }
+                else if (clientPop.HandleKey(e.KeyCode)) { e.Handled = true; e.SuppressKeyPress = true; }
+            };
+            cbClient.Leave += delegate { clientPop.Hide(); };
+            Deactivate += delegate { clientPop.Hide(); artPop.Hide(); };
             cbClient.TextChanged += delegate { ShowClientInfo(); };
             cbClient.SelectedIndexChanged += delegate { ShowClientInfo(); FillPricesForClient(); };
             btnNewClient = new Button(); btnNewClient.Text = "+ нов клиент"; btnNewClient.Location = new Point(450, 27); btnNewClient.Size = new Size(96, 24); btnNewClient.Click += delegate { NewClient(); };
@@ -91,7 +103,7 @@ namespace FakturaLite
             lblRate = new Label(); lblRate.Location = new Point(510, 111); lblRate.Size = new Size(300, 18); lblRate.ForeColor = Color.DimGray;
             tpInv.Controls.Add(lblRate);
 
-            grid = new DataGridView();
+            grid = new SuggestGrid(); grid.KeyHook = ArtKey;
             grid.Location = new Point(12, 142); grid.Size = new Size(1000, 380);
             grid.ScrollBars = ScrollBars.Vertical; grid.RowHeadersVisible = false; grid.AllowUserToAddRows = true; grid.AllowUserToDeleteRows = true; grid.AllowUserToResizeRows = false;
             grid.BackgroundColor = Color.White; grid.SelectionMode = DataGridViewSelectionMode.CellSelect; grid.EditMode = DataGridViewEditMode.EditOnEnter;
@@ -110,7 +122,7 @@ namespace FakturaLite
             grid.RowsRemoved += delegate { if (!loading) { Renumber(); Recalc(); } };
             grid.DataError += delegate (object s, DataGridViewDataErrorEventArgs e) { e.ThrowException = false; };
             tpInv.Controls.Add(grid);
-            Label hint = L("Съвет: започнете да пишете името на артикула — предлага се от списъка. Избирането на клиент и артикул попълва последната цена за този клиент. Delete изтрива избран ред.", 12, 526, 1000);
+            Label hint = L("Съвет: щракнете върху клиента или артикула, за да видите списъка, или пишете част от името, за да търсите. Избирането на клиент и артикул попълва последната цена за този клиент. Delete изтрива избран ред.", 12, 526, 1000);
             hintLbl = hint; tpInv.Controls.Add(hint);
 
             Panel bottom = new Panel(); bottom.Dock = DockStyle.Bottom; bottom.Height = 70; tpInv.Controls.Add(bottom);
@@ -175,7 +187,6 @@ namespace FakturaLite
             loading = true;
             cbClient.Items.Clear();
             foreach (string n in st.ClientNames()) cbClient.Items.Add(n);
-            artSrc.Clear(); foreach (string n in st.ArticleNames()) artSrc.Add(n);
             units = st.StringList("units", "БР.");
             DataGridViewComboBoxColumn cc = (DataGridViewComboBoxColumn)grid.Columns[2];
             cc.Items.Clear(); cc.Items.Add(""); foreach (string u in units) cc.Items.Add(u);
@@ -259,15 +270,78 @@ namespace FakturaLite
         {
             TextBox tb = e.Control as TextBox;
             if (tb == null) return;
-            if (grid.CurrentCell != null && grid.CurrentCell.ColumnIndex == 1)
+            tb.AutoCompleteMode = AutoCompleteMode.None; tb.AutoCompleteSource = AutoCompleteSource.None;
+            if (artPop == null) artPop = new SuggestPopup(ArticleMatches, ArtPicked);
+            if (grid.CurrentCell == null || grid.CurrentCell.ColumnIndex != 1) { artPop.Hide(); return; }
+            // the same edit box is reused for every cell: hook it once
+            if (!object.ReferenceEquals(tb, artEdit))
             {
-                tb.AutoCompleteMode = AutoCompleteMode.SuggestAppend; tb.AutoCompleteSource = AutoCompleteSource.CustomSource; tb.AutoCompleteCustomSource = artSrc;
+                artEdit = tb;
+                tb.MouseUp += delegate { ShowArtPop(true); };
+                tb.TextChanged += delegate { if (!artShowing && !artPicking && tb.Focused) ShowArtPop(false); };
+                tb.Leave += delegate { artPop.Hide(); };
             }
-            else { tb.AutoCompleteMode = AutoCompleteMode.None; tb.AutoCompleteSource = AutoCompleteSource.None; }
+            artShowing = true;      // the text is being loaded into the box, not typed
+            BeginInvoke(new MethodInvoker(delegate { artShowing = false; ShowArtPop(true); }));
+        }
+
+        /* ---- search lists (client field and article cells) ---- */
+        List<string> ClientMatches(string q)
+        {
+            List<string> r = new List<string>(); string[] tok = SuggestPopup.Tokens(q);
+            foreach (string n in st.ClientNames())
+            {
+                JObj c = st.FindClient(n);
+                string hay = n + " " + (c == null ? "" : c.Str("eik") + " " + c.Str("vat") + " " + c.Str("addr") + " " + c.Str("mol"));
+                if (SuggestPopup.Matches(tok, hay)) r.Add(n);
+            }
+            return r;
+        }
+
+        List<string> ArticleMatches(string q)
+        {
+            List<string> r = new List<string>(); string[] tok = SuggestPopup.Tokens(q);
+            foreach (string n in st.ArticleNames()) if (SuggestPopup.Matches(tok, n)) r.Add(n);
+            return r;
+        }
+
+        void ShowClientPop(bool all)
+        {
+            if (loading || clientPop == null) return;
+            string q = cbClient.Text;
+            if (all && (q.Trim().Length == 0 || st.FindClient(q.Trim()) != null)) q = "";   // a chosen client: offer the whole list again
+            clientPop.Show(cbClient, cbClient.RectangleToScreen(cbClient.ClientRectangle), q);
+        }
+
+        void ShowArtPop(bool all)
+        {
+            if (loading || artPop == null || artEdit == null || grid.CurrentCell == null || grid.CurrentCell.ColumnIndex != 1 || grid.EditingControl == null) return;
+            string q = artEdit.Text;
+            if (all && (q.Trim().Length == 0 || st.FindArticle(q.Trim()) != null)) q = "";
+            Rectangle cell = grid.GetCellDisplayRectangle(1, grid.CurrentCell.RowIndex, false);
+            artPop.Show(grid, grid.RectangleToScreen(cell), q);
+        }
+
+        void ArtPicked(string name)
+        {
+            if (artEdit == null || grid.CurrentCell == null) return;
+            artPicking = true; artEdit.Text = name; artEdit.SelectionStart = name.Length; artPicking = false;
+            int row = grid.CurrentCell.RowIndex;
+            // leave the cell (fills unit and price) and go on to the quantity
+            BeginInvoke(new MethodInvoker(delegate { if (row < grid.Rows.Count) grid.CurrentCell = grid.Rows[row].Cells[3]; }));
+        }
+
+        /// <summary>Keys for the article list while a name cell is being edited (the grid would otherwise use Up/Down/Enter itself).</summary>
+        bool ArtKey(Keys key)
+        {
+            if (artPop == null || grid.CurrentCell == null || grid.CurrentCell.ColumnIndex != 1 || grid.EditingControl == null) return false;
+            if (key == Keys.Down && !artPop.Visible) { ShowArtPop(true); return true; }
+            return artPop.HandleKey(key);
         }
 
         void GridCellEnd(object sender, DataGridViewCellEventArgs e)
         {
+            if (artPop != null) artPop.Hide();
             if (loading || e.RowIndex < 0) return;
             DataGridViewRow r = grid.Rows[e.RowIndex];
             if (e.ColumnIndex == 1 && !r.IsNewRow) FillRow(r);

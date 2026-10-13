@@ -15,7 +15,14 @@ a{color:var(--acc)}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;font:14px/1.4 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;overflow:hidden}
-#scroller{flex:1;min-height:0;overflow:auto}
+#scroller{flex:1;min-height:0;min-width:0;overflow:auto}
+#shell{flex:1;min-height:0;display:flex}
+#side{flex:none;width:104px;background:var(--card);border-right:1px solid var(--line);padding:10px 8px;display:flex;flex-direction:column;gap:8px;overflow:auto}
+#side .sb{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:1px solid transparent;border-radius:10px;padding:12px 4px 10px;color:var(--ink);cursor:pointer;font:inherit;font-size:12.5px;line-height:1.25;text-align:center}
+#side .sb svg{color:var(--acc)}
+#side .sb:hover{background:rgba(127,127,127,.14);border-color:var(--line)}
+#side .sb:active{background:rgba(127,127,127,.24)}
+@media(max-width:700px){#side{width:78px}#side .sb{font-size:11px}}
 header{display:flex;align-items:center;gap:2px;background:var(--hd);color:#fff;padding:0 10px;min-height:40px;flex:none;flex-wrap:wrap;z-index:5}
 header .brand{display:flex;align-items:center;gap:8px;margin:3px 14px 3px 0;white-space:nowrap}
 header .brand .bm{height:24px;width:auto}
@@ -130,6 +137,7 @@ dialog .f{margin-bottom:9px}
 @media print{
  header,.noprint,dialog{display:none!important}
  html,body{background:#fff!important;color:#000;height:auto!important;overflow:visible!important;display:block!important}
+ #shell{display:block!important}
  #scroller{overflow:visible!important}
  main{max-width:none;margin:0;padding:0}
  .card{border:0;padding:0;margin:0}
@@ -155,12 +163,15 @@ dialog .f{margin-bottom:9px}
  <button data-t="sups" data-g="sups">Доставчици</button>
  <button data-t="arts" data-g="arts">Артикули</button>
  <span style="flex:1"></span>
- <button class="iconbtn" id="prepBtn" title="Подготви флашка (преносима версия)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="9" width="11" height="13" rx="2"/><path d="M9.5 9V3.5h5V9"/><path d="M12 19v-6M9.5 15.5 12 13l2.5 2.5"/></svg></button>
- <button class="iconbtn" id="syncBtn" title="Синхронизирай от флашката (преносима версия)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="9" width="11" height="13" rx="2"/><path d="M9.5 9V3.5h5V9"/><path d="M10.5 6h.01M13.5 6h.01"/><path d="M9.5 15.5h5M12 13v5"/></svg></button>
  <button data-t="set" data-g="set" class="iconbtn" id="setBtn" title="Настройки"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
  <button id="themeBtn" class="iconbtn" title="Светъл / тъмен режим"></button>
 </header>
 <div id="upd_bar" class="hide noprint"></div>
+<div id="shell">
+<nav id="side" class="noprint" aria-label="Флашка">
+ <button class="sb" id="prepBtn" title="Подготви флашка (преносима версия)"><svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="9" width="11" height="13" rx="2"/><path d="M9.5 9V3.5h5V9"/><path d="M12 19v-6M9.5 15.5 12 13l2.5 2.5"/></svg><span>Подготви флашка</span></button>
+ <button class="sb" id="syncBtn" title="Синхронизирай от флашката (преносима версия)"><svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="9" width="11" height="13" rx="2"/><path d="M9.5 9V3.5h5V9"/><path d="M10.5 6h.01M13.5 6h.01"/><path d="M9.5 15.5h5M12 13v5"/></svg><span>Синхронизирай от флашка</span></button>
+</nav>
 <div id="scroller">
 <main>
 
@@ -373,6 +384,7 @@ dialog .f{margin-bottom:9px}
  </div>
 </section>
 </main>
+</div>
 </div>
 
 <datalist id="dl_clients"></datalist><datalist id="dl_sups"></datalist><datalist id="dl_arts"></datalist><datalist id="dl_units"></datalist>

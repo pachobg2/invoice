@@ -53,7 +53,7 @@ namespace FakturaLite
                 {
                     string dir = a.Substring(12); Directory.CreateDirectory(dir);
                     Doc d = new Doc(); d.No = "3358"; d.Date = "2026-10-13"; d.Tax = d.Date; d.Client = "ТЕСТ КЛИЕНТ"; d.Pay = "В БРОЙ"; d.Comp = "инж. ТЕСТ"; d.Rate = 20;
-                    Item it = new Item(); it.Name = "АРТИКУЛ"; it.Code = "БР."; it.Qty = "1"; it.Price = "10"; d.Items.Add(it); Store.Calc(d);
+                    int nItems = int.Parse(Environment.GetEnvironmentVariable("PT_ITEMS") ?? "1"); for (int ii = 1; ii <= nItems; ii++) { Item it = new Item(); it.Name = nItems == 1 ? "АРТИКУЛ" : "АРТИКУЛ " + ii; it.Code = "БР."; it.Qty = "1"; it.Price = "10"; d.Items.Add(it); } Store.Calc(d);
                     string report = "";
                     foreach (string pn in (Environment.GetEnvironmentVariable("PT_PRINTERS") ?? "Microsoft Print to PDF").Split(';'))
                     {

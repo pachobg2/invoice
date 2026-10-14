@@ -71,8 +71,8 @@ function freshState() {
   return {
     clients: [], suppliers: [], articles: [], invoices: [], units: sd.units, payments: sd.payments, compilers: sd.compilers,
     company: { name: '', addr: '', vat: '', eik: '', mol: '', bank: '', bic: '', iban: '' },
-    logo: true, nextNo: 1, rate: 20,
-    inv: { client: '', date: today(), tax: today(), taxManual: false, pay: sd.payments[0] || '', comp: sd.compilers[0] || '', rate: 20, orig: 'ОРИГИНАЛ', lines: blankLines(8) },
+    logo: true, logoImage: '', nextNo: 1, rate: 20,
+    inv: { client: '', date: today(), tax: today(), taxManual: false, pay: sd.payments[0] || '', comp: sd.compilers[0] || '', rate: 20, orig: 'ОРИГИНАЛ', lines: blankLines(HALF) },
     stock: { sup: '', date: today(), comp: sd.compilers[0] || '', orig: 'ОРИГИНАЛ', lines: Array.from({ length: 8 }, () => ({ name: '', unit: 'БР.', qty: '', price: '' })) },
     receipts: [], nextRcpt: 1
   };
@@ -314,9 +314,9 @@ function clientInfoHtml(c) {
 function renderInvoice() {
   fillDatalists(); syncInvForm(); updateInvoice();
 }
-const HALF = 8, MID = 34, LAST = 24; // rows: two copies per sheet / full page without totals / full page with totals
+const HALF = 7, RHALF = 8, MID = 34, LAST = 24; // rows: invoice, two copies per sheet (7) / warehouse receipt, one copy on half a sheet (8) / full page without totals / full page with totals
 function copyHtml(d, c, calc, orig, items, o) { // o: {start, pad, last, pg}
-  const co = S.company, sup = S.logo ? '<img class="lm" src="logo-mark.png"><img class="lt" src="logo-text.png">' : esc(co.name);
+  const co = S.company, sup = esc(co.name), lg = logoTag();
   let rows = items.map((l, i) => `<tr><td class="c">${o.start + i + 1}</td><td>${esc(l.name)}</td><td class="c">${esc(l.code)}</td><td class="c">${qtyFmt(l.qty)}</td><td class="n">${eur(num(l.price))}</td><td class="n">${eur(l.val)}</td></tr>`).join('');
   for (let i = items.length; i < o.pad; i++) rows += '<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>';
   const party = (lbl, nm, p) => `<div class="pbox"><div class="lbl">${lbl}</div><div class="nm">${nm}</div><div class="kv"><span>Адрес:</span><span>${esc(p?.addr)}</span><span>№ по ЗДДС:</span><span>${esc(p?.vat)}</span><span>ЕИК/ЕГН:</span><span>${esc(p?.eik)}</span><span>МОЛ:</span><span>${esc(p?.mol)}</span></div></div>`;
@@ -327,7 +327,7 @@ function copyHtml(d, c, calc, orig, items, o) { // o: {start, pad, last, pg}
    <div class="sg">съставител<b>${esc(d.comp)}</b></div></div>`
     : `<div class="cont">продължава на следващата страница…</div>`;
   return `<div class="copy">${o.pg ? `<div class="pg">стр. ${o.pg}</div>` : ''}
-  <div class="iv-top"><div><h1>ФАКТУРА</h1>${orig ? `<span class="tag">${esc(orig)}</span>` : ''}</div>
+  <div class="iv-top"><div class="iv-l"><h1>ФАКТУРА</h1>${orig ? `<span class="tag">${esc(orig)}</span>` : ''}</div><div class="iv-c">${lg}</div>
    <div class="iv-meta"><div class="no"><span>№</span> ${esc(padNo(S.nextNo))}</div><div><span>дата на издаване:</span> ${dmy(d.date)}</div><div><span>дата на данъчно събитие:</span> ${dmy(d.tax || d.date)}</div></div></div>
   <div class="iv-parties">${party('П О Л У Ч А Т Е Л', esc(d.client), c)}${party('Д О С Т А В Ч И К', sup, co)}</div>
   <table class="ib"><colgroup><col style="width:8mm"><col><col style="width:15mm"><col style="width:20mm"><col style="width:24mm"><col style="width:26mm"></colgroup>
@@ -553,7 +553,7 @@ $('#i_clientInfo').addEventListener('click', e => { if (e.target.id === 'i_nfAdd
 const sBlank = n => Array.from({ length: n }, () => ({ name: '', unit: 'БР.', qty: '', price: '' }));
 function ensureStock() { // older drafts had a free-text date and no numbering
   const d = S.stock;
-  if (!d.lines || !d.lines.length || (!d.edit && d.lines.length > HALF && d.lines.every(l => !l.name && !l.qty && !l.price))) d.lines = sBlank(HALF);
+  if (!d.lines || !d.lines.length || (!d.edit && d.lines.length > HALF && d.lines.every(l => !l.name && !l.qty && !l.price))) d.lines = sBlank(RHALF);
   if (!/^\d{4}-\d\d-\d\d$/.test(d.date || '')) d.date = today();
   if (d.orig === undefined) d.orig = 'ОРИГИНАЛ';
   if (!S.receipts) S.receipts = [];
@@ -588,7 +588,7 @@ function syncStockForm() {
 }
 function renderStock() { fillDatalists(); syncStockForm(); updateStock(); }
 function rcpCopyHtml(d, s, calc, orig, items, o) {
-  const co = S.company, logo = S.logo ? '<img class="lm" src="logo-mark.png"><img class="lt" src="logo-text.png">' : esc(co.name);
+  const co = S.company, logo = esc(co.name);   // the warehouse receipt has no logo
   let rows = items.map((l, i) => `<tr><td class="c">${o.start + i + 1}</td><td>${esc(l.name)}</td><td class="c">${esc(l.unit)}</td><td class="c">${qtyFmt(l.qty)}</td><td class="n">${eur(num(l.price))}</td><td class="n">${eur(l.val)}</td></tr>`).join('');
   for (let i = items.length; i < o.pad; i++) rows += '<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>';
   const party = (lbl, nm, p) => `<div class="pbox"><div class="lbl">${lbl}</div><div class="nm">${nm}</div><div class="kv"><span>Адрес:</span><span>${esc(p?.addr)}</span><span>№ по ЗДДС:</span><span>${esc(p?.vat)}</span><span>ЕИК/ЕГН:</span><span>${esc(p?.eik)}</span><span>МОЛ:</span><span>${esc(p?.mol)}</span></div></div>`;
@@ -597,7 +597,7 @@ function rcpCopyHtml(d, s, calc, orig, items, o) {
   <div class="iv-foot"><div></div><div class="sg">подпис на доставчика<b>&nbsp;</b></div><div class="sg">съставил /подпис/<b>${esc(d.comp)}</b></div></div>`
     : `<div class="cont">продължава на следващата страница…</div>`;
   return `<div class="copy">${o.pg ? `<div class="pg">стр. ${o.pg}</div>` : ''}
-  <div class="iv-top"><div><h1 style="font-size:19px;letter-spacing:3px">СКЛАДОВА РАЗПИСКА</h1>${orig ? `<span class="tag">${esc(orig)}</span>` : ''}</div>
+  <div class="iv-top"><div class="iv-l"><h1 style="font-size:19px;letter-spacing:3px">СКЛАДОВА РАЗПИСКА</h1>${orig ? `<span class="tag">${esc(orig)}</span>` : ''}</div><div class="iv-c"></div>
    <div class="iv-meta"><div class="no"><span>дата</span> ${dmy(d.date)}</div></div></div>
   <div class="iv-parties">${party('Д О С Т А В Ч И К', esc(d.sup), s)}${party('И З Д А В А', logo, co)}</div>
   <table class="ib"><colgroup><col style="width:8mm"><col><col style="width:15mm"><col style="width:20mm"><col style="width:24mm"><col style="width:26mm"></colgroup>
@@ -606,8 +606,8 @@ function rcpCopyHtml(d, s, calc, orig, items, o) {
 }
 function stockSheetHtml(d, s, calc) { // ONE copy per receipt: half an A4 sheet when it is short, a full page (continued if needed) when it is long
   const items = calc.items, W = items.reduce((a, l) => a + wOf(l), 0);
-  if (W <= HALF) // short receipt: a single copy on the TOP HALF of the sheet (the lower half stays free)
-    return `<div class="page one">${rcpCopyHtml(d, s, calc, '', items, { start: 0, pad: HALF - W + items.length, last: true })}</div>`;
+  if (W <= RHALF) // short receipt: a single copy on the TOP HALF of the sheet (the lower half stays free)
+    return `<div class="page one">${rcpCopyHtml(d, s, calc, '', items, { start: 0, pad: RHALF - W + items.length, last: true })}</div>`;
   const pages = W <= LAST ? [items] : chunkRows(items);
   let at = 0;
   return pages.map((pg, pi) => {
@@ -641,7 +641,7 @@ function recordReceipt() {
     items: calc.items.map(l => ({ name: l.name, unit: l.unit, qty: l.qty, price: l.price })) };
   if (d.edit && S.receipts[d.edit.idx]) S.receipts[d.edit.idx] = rec; else S.receipts.push(rec);
 }
-function clearStock() { S.stock.sup = ''; S.stock.date = today(); S.stock.lines = sBlank(HALF); }
+function clearStock() { S.stock.sup = ''; S.stock.date = today(); S.stock.lines = sBlank(RHALF); }
 const stockEmpty = () => !S.stock.sup && S.stock.lines.every(l => !l.name && !l.qty && !l.price);
 function endStockEdit() { const e = S.stock.edit; if (!e) return; S.stock = e.stash; }
 function afterReceipt() { if (S.stock.edit) endStockEdit(); else clearStock(); }
@@ -656,12 +656,12 @@ function copyReceipt(idx) {
   const r = S.receipts[idx]; if (!r) return;
   if (S.stock.edit) { if (!confirm('Излизате от режим „редакция“ без запис. Продължавам?')) return; endStockEdit(); }
   else if (!stockEmpty() && !confirm('Текущата чернова ще бъде заменена. Продължавам?')) return;
-  Object.assign(S.stock, { sup: r.sup, date: today(), comp: r.comp || S.stock.comp, lines: r.items.length ? r.items.map(x => ({ ...x })) : sBlank(HALF) });
+  Object.assign(S.stock, { sup: r.sup, date: today(), comp: r.comp || S.stock.comp, lines: r.items.length ? r.items.map(x => ({ ...x })) : sBlank(RHALF) });
   saveNow(); showTab('stock'); sMsg(`Копирана е разписка от ${dmy(r.date)} (${r.sup}). Проверете количествата и цените.`, true);
 }
 function newReceipt() {
   if (S.stock.edit) endStockEdit();
-  S.stock.sup = ''; S.stock.date = today(); S.stock.lines = sBlank(HALF);
+  S.stock.sup = ''; S.stock.date = today(); S.stock.lines = sBlank(RHALF);
   saveNow(); showTab('stock'); sMsg(''); $('#s_sup').focus();
 }
 function lastStockDeal(sup, name) {
@@ -722,7 +722,7 @@ $('#s_prev').onclick = () => showTab('sprev');
 $('#sp_back').onclick = () => showTab('stock');
 $('#sp_save').onclick = () => $('#s_save').onclick();
 $('#sp_print').onclick = () => $('#s_print').onclick();
-$('#s_clear').onclick = () => { if (S.stock.edit) endStockEdit(); else { S.stock.sup = ''; S.stock.lines = sBlank(HALF); } save(); sMsg(''); syncStockForm(); updateStock(); };
+$('#s_clear').onclick = () => { if (S.stock.edit) endStockEdit(); else { S.stock.sup = ''; S.stock.lines = sBlank(RHALF); } save(); sMsg(''); syncStockForm(); updateStock(); };
 $('#s_cancelEdit').onclick = () => { endStockEdit(); saveNow(); sMsg(''); syncStockForm(); updateStock(); };
 $('#sp_pdf').onclick = async () => {
   const m = validateStock(); if (m) return sMsg(m);
@@ -1041,7 +1041,7 @@ function renderSettings() {
   renderAbout();
   applyPortableUi();
   $$('[data-c]').forEach(e => e.value = S.company[e.dataset.c] || '');
-  $('#c_next').value = S.nextNo; $('#c_rate').value = S.rate; $('#c_logo').checked = !!S.logo;
+  $('#c_next').value = S.nextNo; $('#c_rate').value = S.rate; renderLogoCard();
   if (HOST) { $('#bk_host').classList.remove('hide'); hostCall('info').then(i => { $('#bk_info').innerHTML = `Всички данни са на едно място: <b>${esc(i.dataDir)}</b><br>data.json — документи, клиенти, доставчици, артикули и настройки · backups\\ — автоматични архиви (при всеки записан документ и веднъж дневно, последните ${i.keep}): ${i.count} файла${i.last ? ', последен ' + esc(i.last) : ''} · config.json — позиция на прозореца`; }).catch(() => { }); }
   $('#x_units').value = S.units.join('\n'); $('#x_pays').value = S.payments.join('\n'); $('#x_comps').value = S.compilers.join('\n');
 }
@@ -1221,7 +1221,7 @@ const mainNextNo = () => S.inv.edit ? S.inv.edit.prevNext : S.nextNo;
 function buildPortableState() {   // always carries the client / supplier / article lists (not the issued documents)
   const P = JSON.parse(JSON.stringify(S));
   P.invoices = []; P.receipts = []; P.nextRcpt = 1; P.nextNo = mainNextNo();
-  P.inv = { client: '', date: today(), tax: today(), taxManual: false, pay: S.payments[0] || '', comp: S.compilers[0] || '', rate: S.rate, orig: 'ОРИГИНАЛ', lines: blankLines(8) };
+  P.inv = { client: '', date: today(), tax: today(), taxManual: false, pay: S.payments[0] || '', comp: S.compilers[0] || '', rate: S.rate, orig: 'ОРИГИНАЛ', lines: blankLines(HALF) };
   P.stock = { sup: '', date: today(), comp: S.compilers[0] || '', lines: sBlank(8) };
   P.portable = { id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)), created: today(), baseNextNo: P.nextNo, withLists: true };
   return P;
@@ -1363,8 +1363,9 @@ $('#sy_auto').onclick = syncFromDrive;
 $('#syncBtn').onclick = syncFromDrive;
 
 /* ---------------- about / version ---------------- */
-const LITE_VERSION = '1.3.0';   // keep in sync with lite\Faktura-Lite.csproj
+const LITE_VERSION = '1.4.0';   // keep in sync with lite\Faktura-Lite.csproj
 const CHANGELOG = [
+  ['2.10.0', '14.10.2026', ['Печатни документи: логото на фирмата е най-отгоре в средата на фактурата; в Настройки може да се качи собствено лого (PNG, JPG, SVG…), копира се и в преносимата версия', 'Фактурата е с 7 реда на половин лист, по-големи полета горе и долу, второто копие е по-близо до пунктираната линия', 'По-удобен печат за лазерни принтери: черен текст и линии, по-едър дребен шрифт, по-плътни рамки, сив фон на заглавния ред и на общата сума', 'Lite 1.4.0: печатът е с точно същия вид като в основното приложение']],
   ['2.9.0', '13.10.2026', ['Lite 1.3.0: печатът е същият като в пълната версия (без смаляване), точно подравнен спрямо хартията — отместването на принтера се чете от самия принтер', 'Lite: собствен преглед, който показва листа точно както ще се отпечата', 'Lite: бутон ✕ във всеки ред на артикулите за изтриване на реда']],
   ['2.8.2', '13.10.2026', ['Lite 1.2.1: поправена грешка при щракване върху полето за клиент (Object reference not set to an instance of an object)']],
   ['2.8.1', '13.10.2026', ['Премахнато е форматирането на флашката — подготовката само копира файловете и прави пряка връзка (автоматичното откриване, синхронизиране и обновяване остават)', 'Lite: при щракване върху полето за клиент или артикул се показва списък с всички, а при писане се търси по част от името (и по ЕИК/адрес за клиенти)']],
@@ -1492,9 +1493,50 @@ function drvSettings() {
   c.checked = drvPref(); c.onchange = () => updSet({ drive: c.checked });
 }
 
+/* ---------------- company logo: uploaded in Настройки, printed at the top of invoices and receipts ---------------- */
+const logoTag = () => S.logo && S.logoImage ? `<img class="lg" src="${S.logoImage}" alt="">` : '';
+const loadImg = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Картинката не може да се отвори.')); i.src = src; });
+async function setLogo(file) {
+  if (!/^image\//.test(file.type)) throw new Error('Изберете картинка (PNG, JPG, GIF, WebP или SVG).');
+  const url = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('Файлът не може да се прочете.')); r.readAsDataURL(file); });
+  const img = await loadImg(url);
+  let w = img.naturalWidth, h = img.naturalHeight; if (!w || !h) { w = 400; h = 150; }      // an SVG without a size
+  const k = Math.min(1, 900 / w, 300 / h), cw = Math.max(1, Math.round(w * k)), ch = Math.max(1, Math.round(h * k));
+  const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+  const x = c.getContext('2d'); x.drawImage(img, 0, 0, cw, ch);
+  let out = c.toDataURL('image/png');
+  if (out.length > 450000) { x.globalCompositeOperation = 'destination-over'; x.fillStyle = '#fff'; x.fillRect(0, 0, cw, ch); out = c.toDataURL('image/jpeg', 0.88); }   // a photo: smaller as JPEG
+  S.logoImage = out; S.logo = true; saveNow(); renderLogoCard();
+}
+async function migrateLogo() {                 // data from before the logo became uploadable: keep the logo that used to be built in
+  if (S.logoImage !== undefined || S.portable) return;
+  S.logoImage = '';
+  if (!((S.company && S.company.name) || (S.invoices && S.invoices.length))) return;
+  try {
+    const [m, t] = await Promise.all([loadImg('logo-mark.png'), loadImg('logo-text.png')]);
+    const H = 320, wm = m.width * H / m.height, th = H * 0.55, wt = t.width * th / t.height, gap = H * 0.18;
+    const c = document.createElement('canvas'); c.width = Math.round(wm + gap + wt); c.height = H;
+    const x = c.getContext('2d'); x.drawImage(m, 0, 0, wm, H); x.drawImage(t, wm + gap, (H - th) / 2, wt, th);
+    S.logoImage = c.toDataURL('image/png'); S.logo = true; saveNow();
+  } catch (e) { S.logoImage = ''; }
+}
+function renderLogoCard() {
+  const has = !!S.logoImage;
+  $('#c_logo').checked = !!S.logo;
+  $('#lg_prev').src = has ? S.logoImage : '';
+  $('#lg_prevwrap').classList.toggle('hide', !has); $('#lg_none').classList.toggle('hide', has); $('#lg_del').classList.toggle('hide', !has);
+}
+$('#lg_file').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { $('#lg_msg').innerHTML = ''; await setLogo(f); $('#lg_msg').innerHTML = '<div class="okmsg">Логото е запазено. Вижте го в „Преглед и печат“.</div>'; }
+  catch (err) { $('#lg_msg').innerHTML = `<div class="err">${esc(err.message)}</div>`; }
+};
+$('#lg_del').onclick = () => { if (confirm('Да премахна ли логото?')) { S.logoImage = ''; saveNow(); renderLogoCard(); } };
+
 /* ---------------- boot ---------------- */
 (async () => {
   await load();
+  await migrateLogo();
   S.rate = S.rate ?? 20;
   ensureStock();
   applyPortableUi();

@@ -23,7 +23,7 @@ namespace FakturaLite
 
     public static class InvoicePrint
     {
-        const int HALF = 8, MID = 34, LAST = 24, CPL = 50;   // same limits as the full app
+        const int HALF = 7, MID = 34, LAST = 24, CPL = 50;   // same limits as the full app
 
         static int Weight(Item it) { int n = (it.Name ?? "").Length; return Math.Max(1, (n + CPL - 1) / CPL); }
 
@@ -79,8 +79,30 @@ namespace FakturaLite
             }
         }
 
-        static readonly Color Ink = Color.FromArgb(17, 17, 17), Gray = Color.FromArgb(102, 102, 102), Navy = Color.FromArgb(29, 35, 48);
-        static readonly Color Head = Color.FromArgb(233, 236, 241), Box = Color.FromArgb(154, 161, 173), Grid = Color.FromArgb(201, 205, 213);
+        /// <summary>The company logo from data.json (a data: URL written by the main app). Data prepared by an older version has no such key: the logo that used to be built in is used then.</summary>
+        static Image Logo(Store st)
+        {
+            if (!st.ShowLogo) return null;
+            object raw = st.Root["logoImage"];
+            if (raw is string)
+            {
+                string s = (string)raw; int i = s.IndexOf("base64,");
+                if (i < 0) return null;
+                try { using (MemoryStream ms = new MemoryStream(Convert.FromBase64String(s.Substring(i + 7)))) using (Image im = Image.FromStream(ms)) return new Bitmap(im); }
+                catch { return null; }
+            }
+            if (raw != null) return null;
+            Image m = LoadImage("logo-mark.png"), t = LoadImage("logo-text.png");
+            if (m == null || t == null) { if (m != null) m.Dispose(); if (t != null) t.Dispose(); return null; }
+            float hm = 320f, wm = hm * m.Width / m.Height, ht = hm * 0.55f, wt = ht * t.Width / t.Height, gap = hm * 0.18f;
+            Bitmap b = new Bitmap((int)Math.Round(wm + gap + wt), (int)hm);
+            using (Graphics gg = Graphics.FromImage(b)) { gg.InterpolationMode = InterpolationMode.HighQualityBicubic; gg.DrawImage(m, 0f, 0f, wm, hm); gg.DrawImage(t, wm + gap, (hm - ht) / 2f, wt, ht); }
+            m.Dispose(); t.Dispose();
+            return b;
+        }
+
+        static readonly Color Ink = Color.Black, Gray = Color.Black, Navy = Color.Black;
+        static readonly Color Head = Color.FromArgb(214, 218, 225), Box = Color.Black, Grid = Color.Black;
 
         static string Dmy(string iso)
         {
@@ -104,8 +126,8 @@ namespace FakturaLite
             if (p.Two)
             {
                 DrawCopy(g, st, d, 0f, 146f, false, "ОРИГИНАЛ", 0, slice, true, "", HALF);
-                using (Pen dash = new Pen(Color.FromArgb(170, 170, 170), 0.15f)) { dash.DashStyle = DashStyle.Dash; g.DrawLine(dash, 5f, 147.2f, 205f, 147.2f); }
-                DrawCopy(g, st, d, 148.5f, 146f, false, "", 0, slice, true, "", HALF);
+                using (Pen dash = new Pen(Color.Black, 0.25f)) { dash.DashStyle = DashStyle.Dash; g.DrawLine(dash, 0f, 145.9f, 210f, 145.9f); }
+                DrawCopy(g, st, d, 143f, 149f, false, "", 0, slice, true, "", HALF);      // as in the main app: the second copy starts 3 mm below the dotted line
             }
             else DrawCopy(g, st, d, 0f, 296f, true, p.Tag, p.Start, slice, p.Last, p.Label, 0);
         }
@@ -140,103 +162,135 @@ namespace FakturaLite
             }
         }
 
+        /* Every position below was measured on the main app's sheet (millimetres from the top of a copy; the same Arial sizes), so the portable
+           version prints the same layout: band, parties, table, totals, bank details and signatures. */
+        const float Em = 25.4f / 72f;                               // 1 pt in millimetres
+        static readonly Color Dim = Color.Black, Dim2 = Color.Black, SigLine = Color.Black;
+
+        static float SpaceW(Font f) { return 0.278f * f.Size * Em; }
+
+        static float Width(Graphics g, string s, Font f)
+        {
+            if (s.Length == 0) return 0f;
+            float w = g.MeasureString(s, f, 2000, StringFormat.GenericTypographic).Width;
+            foreach (char ch in s) if (ch == ' ') w += 0f;           // spaces inside a string are measured by GDI+ itself
+            return w;
+        }
+
+        /// <summary>Text with letter spacing (GDI+ has none): every character is drawn on its own. Returns the x after the last character (the spacing after it included, like CSS).</summary>
+        static float TextLS(Graphics g, string s, Font f, Color c, float x, float y, float ls)
+        {
+            using (SolidBrush b = new SolidBrush(c))
+                foreach (char ch in s)
+                {
+                    string t = ch.ToString();
+                    float w = ch == ' ' ? SpaceW(f) : g.MeasureString(t, f, 2000, StringFormat.GenericTypographic).Width;
+                    if (ch != ' ') g.DrawString(t, f, b, x, y, StringFormat.GenericTypographic);
+                    x += w + ls;
+                }
+            return x;
+        }
+
+        /// <summary>Grey label + dark value on one line, right aligned (e.g. "дата на издаване: 13.10.2026").</summary>
+        static void TextRR(Graphics g, string label, Font fl, Color cl, string value, Font fv, Color cv, float xRight, float y)
+        {
+            float wv = Width(g, value, fv), wl = Width(g, label, fl), x = xRight - wv - SpaceW(fl) - wl;
+            Text(g, label, fl, cl, x, y); Text(g, value, fv, cv, xRight - wv, y);
+        }
+
         static void Party(Graphics g, Store st, float x, float y, float w, float h, string label, string name, bool logo, string addr, string vat, string eik, string mol)
         {
-            using (Pen pen = new Pen(Box, 0.2f)) RoundRect(g, pen, x, y, w, h, 1.6f);
-            using (Font fl = new Font("Arial", 6f, FontStyle.Bold)) Text(g, label, fl, Gray, x + 2.5f, y + 1.8f);
-            if (logo)
-            {
-                using (Image m = LoadImage("logo-mark.png")) using (Image t = LoadImage("logo-text.png"))
-                {
-                    float hm = 6.6f, wm = m != null ? hm * m.Width / m.Height : 0f, ht = 4.3f, wt = t != null ? ht * t.Width / t.Height : 0f;
-                    if (m != null) g.DrawImage(m, x + 2.5f, y + 4.8f, wm, hm);
-                    if (t != null) g.DrawImage(t, x + 2.5f + wm + 2f, y + 4.8f + (hm - ht) / 2f, wt, ht);
-                    if (m == null && t == null) using (Font fn = new Font("Arial", 9f, FontStyle.Bold)) Text(g, name, fn, Ink, x + 2.5f, y + 5f);
-                }
-            }
-            else using (Font fn = new Font("Arial", 9f, FontStyle.Bold)) Clipped(g, name, fn, Ink, x + 2.5f, y + 5f, w - 5f);
+            using (Pen pen = new Pen(Navy, 0.4f)) RoundRect(g, pen, x + 0.2f, y + 0.2f, w - 0.4f, h - 0.4f, 2f);
+            using (Font fl = new Font("Arial", 7.125f, FontStyle.Bold)) TextLS(g, label, fl, Gray, x + 3.21f, y + 2.40f, 0.53f);
+            using (Font fn = new Font("Arial", 9f, FontStyle.Bold)) Clipped(g, name, fn, Ink, x + 3.21f, y + 6.71f, w - 6.4f);
             string[] lab = { "Адрес:", "№ по ЗДДС:", "ЕИК/ЕГН:", "МОЛ:" }, val = { addr, vat, eik, mol };
-            using (Font f = new Font("Arial", 7f))
+            using (Font f = new Font("Arial", 7.875f))
                 for (int i = 0; i < 4; i++)
                 {
-                    float yy = y + 11.4f + i * 3.05f;
-                    Text(g, lab[i], f, Gray, x + 2.5f, yy);
-                    Clipped(g, val[i], f, Ink, x + 20f, yy, w - 22f);
+                    float yy = y + 11.81f + i * 3.61f;
+                    Text(g, lab[i], f, Gray, x + 3.21f, yy);
+                    Clipped(g, val[i], f, Ink, x + 20.59f, yy, w - 23.8f);   // label column 15.79 mm + the 1.59 mm column gap, as in the main app
                 }
         }
 
         static void DrawCopy(Graphics g, Store st, Doc d, float oy, float h, bool full, string tag, int start, List<Item> rows, bool last, string pgLabel, int padWeight)
         {
             JObj co = st.Company;
-            float X0 = full ? 13f : 10f, W = 210f - 2f * X0, y = oy + (full ? 12f : 6f);
+            float X0 = full ? 13f : 10f, W = 210f - 2f * X0, y = oy + (full ? 12f : (oy < 1f ? 9f : 6f));
 
-            // ---- title band ----
-            float titleW;
-            using (Font ft = new Font("Arial", 19f, FontStyle.Bold))
-            {
-                Text(g, "ФАКТУРА", ft, Ink, X0, y);
-                titleW = g.MeasureString("ФАКТУРА", ft, 200, StringFormat.GenericTypographic).Width;
-            }
-            if (tag.Length > 0)
-                using (Font fg = new Font("Arial", 7f, FontStyle.Bold))
+            // ---- title band: the title on the left, the company logo in the middle of the sheet, the number and dates on the right ----
+            using (Image logo = Logo(st))
+                if (logo != null && logo.Width > 0 && logo.Height > 0)
                 {
-                    float tw = g.MeasureString(tag, fg, 200, StringFormat.GenericTypographic).Width;
-                    using (Pen pen = new Pen(Navy, 0.35f)) g.DrawRectangle(pen, X0 + titleW + 4f, y + 2.6f, tw + 4f, 4.4f);
-                    Text(g, tag, fg, Ink, X0 + titleW + 6f, y + 3.6f);
+                    float k = Math.Min(10.5f / logo.Height, 50f / logo.Width), lw = logo.Width * k, lh = logo.Height * k;
+                    g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    g.DrawImage(logo, 105f - lw / 2f, y + 14.28f - lh, lw, lh);
                 }
-            using (Font fb = new Font("Arial", 11f, FontStyle.Bold)) TextR(g, "№ " + Store.Pad(d.No), fb, Ink, X0 + W, y - 0.5f);
-            using (Font fs = new Font("Arial", 7.5f))
+            float xEnd;
+            using (Font ft = new Font("Arial", 18f, FontStyle.Bold)) xEnd = TextLS(g, "ФАКТУРА", ft, Ink, X0, y + 7.51f, 1.32f);
+            if (tag.Length > 0)
+                using (Font fg = new Font("Arial", 7.5f, FontStyle.Bold))
+                {
+                    float rx = xEnd + 2.65f, tw = 0f;
+                    foreach (char ch in tag) tw += g.MeasureString(ch.ToString(), fg, 2000, StringFormat.GenericTypographic).Width + 0.4f;
+                    float rw = tw + 5.04f;
+                    using (Pen pen = new Pen(Navy, 0.4f)) g.DrawRectangle(pen, rx + 0.2f, y + 10.52f + 0.2f, rw - 0.4f, 3.92f - 0.4f);
+                    TextLS(g, tag, fg, Ink, rx + 2.52f, y + 10.52f + 0.63f, 0.4f);
+                }
+            using (Font fb = new Font("Arial", 11.25f, FontStyle.Bold))
+                TextRR(g, "№", fb, Dim, Store.Pad(d.No), fb, Ink, X0 + W, y + 0.64f);
+            using (Font fs = new Font("Arial", 7.875f))
             {
-                TextR(g, "дата на издаване: " + Dmy(d.Date), fs, Ink, X0 + W, y + 5.2f);
-                TextR(g, "дата на данъчно събитие: " + Dmy(d.Tax.Length > 0 ? d.Tax : d.Date), fs, Ink, X0 + W, y + 8.7f);
+                TextRR(g, "дата на издаване:", fs, Dim, Dmy(d.Date), fs, Ink, X0 + W, y + 6.38f);
+                TextRR(g, "дата на данъчно събитие:", fs, Dim, Dmy(d.Tax.Length > 0 ? d.Tax : d.Date), fs, Ink, X0 + W, y + 10.55f);
             }
-            if (pgLabel.Length > 0) using (Font fp = new Font("Arial", 7f)) TextR(g, pgLabel, fp, Gray, X0 + W, oy + 2f);
-            using (Pen rule = new Pen(Navy, 0.5f)) g.DrawLine(rule, X0, y + 12.4f, X0 + W, y + 12.4f);
+            if (pgLabel.Length > 0) using (Font fp = new Font("Arial", 7.5f)) TextR(g, pgLabel, fp, Gray, 200f, oy + 2.5f);
+            using (Pen rule = new Pen(Navy, 0.53f)) g.DrawLine(rule, X0, y + 16.45f, X0 + W, y + 16.45f);
 
             // ---- parties ----
-            float by = y + 15f, bw = (W - 5f) / 2f, bh = full ? 26f : 25f;
+            float by = y + 19.71f, bw = (W - 5f) / 2f, bh = 28.26f;
             Party(g, st, X0, by, bw, bh, "П О Л У Ч А Т Е Л", d.Client, false, d.CAddr, d.CVat, d.CEik, d.CMol);
-            Party(g, st, X0 + bw + 5f, by, bw, bh, "Д О С Т А В Ч И К", co.Str("name"), st.ShowLogo, co.Str("addr"), co.Str("vat"), co.Str("eik"), co.Str("mol"));
+            Party(g, st, X0 + bw + 5f, by, bw, bh, "Д О С Т А В Ч И К", co.Str("name"), false, co.Str("addr"), co.Str("vat"), co.Str("eik"), co.Str("mol"));
 
             // ---- table ----
-            float ty = by + bh + 3f;
+            float ty = by + bh + 3f, hh = 4.82f;
             float[] cw = { 8f, W - 8f - 15f - 20f - 24f - 26f, 15f, 20f, 24f, 26f };
             float[] cx = new float[7]; cx[0] = X0; for (int i = 0; i < 6; i++) cx[i + 1] = cx[i] + cw[i];
             string[] heads = { "№", "наименование на стоката и услугата", "код", "количество", "ед. цена", "стойност" };
-            using (SolidBrush hb = new SolidBrush(Head)) g.FillRectangle(hb, X0, ty, W, 5.2f);
-            using (Pen bp = new Pen(Box, 0.2f)) g.DrawRectangle(bp, X0, ty, W, 5.2f);
-            using (Pen gp = new Pen(Box, 0.15f)) for (int i = 1; i < 6; i++) g.DrawLine(gp, cx[i], ty, cx[i], ty + 5.2f);
-            using (Font fh = new Font("Arial", 7f, FontStyle.Bold)) for (int i = 0; i < 6; i++) TextC(g, heads[i], fh, Ink, cx[i], ty + 1.4f, cw[i]);
+            using (SolidBrush hb = new SolidBrush(Head)) g.FillRectangle(hb, X0, ty, W, hh);
+            using (Pen bp = new Pen(Box, 0.3f)) g.DrawRectangle(bp, X0, ty, W, hh);
+            using (Pen vh = new Pen(Color.FromArgb(154, 161, 173), 0.21f)) for (int i = 1; i < 6; i++) g.DrawLine(vh, cx[i], ty, cx[i], ty + hh);      // thin grey column lines, as in the main app
+            using (Font fh = new Font("Arial", 7.5f, FontStyle.Bold)) for (int i = 0; i < 6; i++) TextC(g, heads[i], fh, Ink, cx[i], ty + 1.0f, cw[i]);
 
-            float ry = ty + 5.2f; int weightDrawn = 0;
-            using (Font fr = new Font("Arial", 8f))
-            using (Pen lp = new Pen(Grid, 0.15f))
+            float ry = ty + hh; int weightDrawn = 0;
+            using (Font fr = new Font("Arial", 7.875f))
+            using (Pen lp = new Pen(Grid, 0.25f))
             using (StringFormat wrap = new StringFormat())
             {
                 wrap.Trimming = StringTrimming.Word;
                 for (int r = 0; r < rows.Count; r++)
                 {
                     Item it = rows[r];
-                    SizeF sz = g.MeasureString(it.Name, fr, new SizeF(cw[1] - 2f, 500f), wrap);
+                    SizeF sz = g.MeasureString(it.Name, fr, new SizeF(cw[1] - 2.64f, 500f), wrap);
                     float rh = Math.Max(4.9f, sz.Height + 1.1f);
-                    TextC(g, (start + r + 1).ToString(CultureInfo.InvariantCulture), fr, Ink, cx[0], ry + 0.9f, cw[0]);
-                    using (SolidBrush b = new SolidBrush(Ink)) g.DrawString(it.Name, fr, b, new RectangleF(cx[1] + 1f, ry + 0.9f, cw[1] - 2f, rh), wrap);
-                    TextC(g, it.Code, fr, Ink, cx[2], ry + 0.9f, cw[2]);
-                    TextC(g, Qty(it.Qty), fr, Ink, cx[3], ry + 0.9f, cw[3]);
-                    TextR(g, Eur(Store.Dec(it.Price)), fr, Ink, cx[5] - 1.2f, ry + 0.9f);
-                    TextR(g, Eur(it.Val), fr, Ink, cx[6] - 1.2f, ry + 0.9f);
+                    TextC(g, (start + r + 1).ToString(CultureInfo.InvariantCulture), fr, Ink, cx[0], ry + 0.86f, cw[0]);
+                    using (SolidBrush b = new SolidBrush(Ink)) g.DrawString(it.Name, fr, b, new RectangleF(cx[1] + 1.32f, ry + 0.86f, cw[1] - 2.64f, rh), wrap);
+                    TextC(g, it.Code, fr, Ink, cx[2], ry + 0.86f, cw[2]);
+                    TextC(g, Qty(it.Qty), fr, Ink, cx[3], ry + 0.86f, cw[3]);
+                    TextR(g, Eur(Store.Dec(it.Price)), fr, Ink, cx[5] - 1.32f, ry + 0.86f);
+                    TextR(g, Eur(it.Val), fr, Ink, cx[6] - 1.32f, ry + 0.86f);
                     g.DrawLine(lp, X0, ry + rh, X0 + W, ry + rh);
-                    for (int i = 0; i <= 6; i++) g.DrawLine(lp, cx[i], ry, cx[i], ry + rh);
+                    using (Pen vp = new Pen(Color.FromArgb(201, 205, 213), 0.21f)) for (int i = 1; i < 6; i++) g.DrawLine(vp, cx[i], ry, cx[i], ry + rh);
                     ry += rh; weightDrawn += Weight(it);
                 }
                 for (int r = weightDrawn; r < padWeight; r++)   // empty rows keep the form look
                 {
                     g.DrawLine(lp, X0, ry + 4.9f, X0 + W, ry + 4.9f);
-                    for (int i = 0; i <= 6; i++) g.DrawLine(lp, cx[i], ry, cx[i], ry + 4.9f);
+                    using (Pen vp = new Pen(Color.FromArgb(201, 205, 213), 0.21f)) for (int i = 1; i < 6; i++) g.DrawLine(vp, cx[i], ry, cx[i], ry + 4.9f);
                     ry += 4.9f;
                 }
             }
-            using (Pen bp = new Pen(Box, 0.2f)) { g.DrawLine(bp, X0, ty + 5.2f, X0, ry); g.DrawLine(bp, X0 + W, ty + 5.2f, X0 + W, ry); g.DrawLine(bp, X0, ry, X0 + W, ry); }
+            using (Pen bp = new Pen(Box, 0.3f)) { g.DrawLine(bp, X0, ty + hh, X0, ry); g.DrawLine(bp, X0 + W, ty + hh, X0 + W, ry); g.DrawLine(bp, X0, ry, X0 + W, ry); }
 
             if (!last)
             {
@@ -244,45 +298,48 @@ namespace FakturaLite
                 return;
             }
 
-            // ---- totals + words ----
-            float sy = ry + 3.5f;
-            using (Font fi = new Font("Arial", 7.8f, FontStyle.Italic))
-            using (StringFormat wrap = new StringFormat())
-            using (SolidBrush b = new SolidBrush(Ink))
+            // ---- words and totals ----
+            float sy = ry + 3.09f;
+            using (Font fi = new Font("Arial", 7.875f, FontStyle.Italic)) using (Font fv = new Font("Arial", 7.875f, FontStyle.Bold))
+            using (StringFormat wrap = new StringFormat()) using (SolidBrush b = new SolidBrush(Ink))
             {
-                g.DrawString("ДДС словом: " + Words.Slov(d.Vat), fi, b, new RectangleF(X0, sy + 0.5f, W - 70f, 9f), wrap);
-                g.DrawString("Сума за плащане словом: " + Words.Slov(d.Total), fi, b, new RectangleF(X0, sy + 8.5f, W - 70f, 9f), wrap);
+                string l1 = "ДДС словом: ", l2 = "Сума за плащане словом: ";
+                float w1 = Width(g, l1, fi) + SpaceW(fi), w2 = Width(g, l2, fi) + SpaceW(fi);
+                Text(g, l1, fi, Ink, X0, sy + 1.56f); g.DrawString(Words.Slov(d.Vat), fv, b, new RectangleF(X0 + w1, sy + 1.56f, W - 69f - w1, 9f), wrap);
+                Text(g, l2, fi, Ink, X0, sy + 5.87f); g.DrawString(Words.Slov(d.Total), fv, b, new RectangleF(X0 + w2, sy + 5.87f, W - 69f - w2, 9f), wrap);
             }
             float tx = X0 + W - 64f;
-            using (Font f = new Font("Arial", 8f))
+            using (Font f = new Font("Arial", 7.875f))
             {
-                Text(g, "дан. основа:", f, Ink, tx + 1.5f, sy + 0.5f); TextR(g, Eur(d.Base), f, Ink, X0 + W - 1.5f, sy + 0.5f);
-                Text(g, "ДДС ставка:", f, Ink, tx + 1.5f, sy + 4.3f); TextR(g, d.Rate.ToString("0.##", CultureInfo.InvariantCulture) + "%", f, Ink, X0 + W - 1.5f, sy + 4.3f);
-                Text(g, "ДДС:", f, Ink, tx + 1.5f, sy + 8.1f); TextR(g, Eur(d.Vat), f, Ink, X0 + W - 1.5f, sy + 8.1f);
+                Text(g, "дан. основа:", f, Ink, tx + 1.32f, sy + 0.47f); TextR(g, Eur(d.Base), f, Ink, X0 + W - 1.32f, sy + 0.47f);
+                Text(g, "ДДС ставка:", f, Ink, tx + 1.32f, sy + 4.61f); TextR(g, d.Rate.ToString("0.##", CultureInfo.InvariantCulture) + "%", f, Ink, X0 + W - 1.32f, sy + 4.61f);
+                Text(g, "ДДС:", f, Ink, tx + 1.32f, sy + 8.76f); TextR(g, Eur(d.Vat), f, Ink, X0 + W - 1.32f, sy + 8.76f);
             }
-            using (SolidBrush hb = new SolidBrush(Head)) g.FillRectangle(hb, tx, sy + 12.2f, 64f, 5.6f);
-            using (Pen np = new Pen(Navy, 0.35f)) g.DrawLine(np, tx, sy + 12.2f, tx + 64f, sy + 12.2f);
-            using (Font fbold = new Font("Arial", 9.5f, FontStyle.Bold))
+            using (SolidBrush hb = new SolidBrush(Head)) g.FillRectangle(hb, tx, sy + 12.53f, 64f, 5.4f);
+            using (Pen np = new Pen(Navy, 0.4f)) { g.DrawLine(np, tx, sy + 12.53f, tx + 64f, sy + 12.53f); g.DrawLine(np, tx, sy + 12.53f + 5.4f, tx + 64f, sy + 12.53f + 5.4f); }
+            using (Font fbold = new Font("Arial", 9f, FontStyle.Bold))
             {
-                Text(g, "сума за плащане:", fbold, Ink, tx + 1.5f, sy + 13.2f); TextR(g, Eur(d.Total), fbold, Ink, X0 + W - 1.5f, sy + 13.2f);
+                Text(g, "сума за плащане:", fbold, Ink, tx + 1.32f, sy + 13.51f); TextR(g, Eur(d.Total), fbold, Ink, X0 + W - 1.32f, sy + 13.51f);
             }
 
-            // ---- bottom: bank details + signatures ----
-            float fy = oy + h - (full ? 9f : 4f) - 20f;
-            using (Font f = new Font("Arial", 7.3f)) using (Font fb = new Font("Arial", 7.3f, FontStyle.Bold))
+            // ---- bottom of the copy: bank details and signatures (anchored to the bottom like in the main app) ----
+            float ft0 = oy + h - (full ? 9.2f : 8.2f) - 16.93f;
+            using (Font f = new Font("Arial", 7.875f)) using (Font fb = new Font("Arial", 7.875f, FontStyle.Bold))
             {
-                Text(g, "плащане:", f, Gray, X0, fy); Text(g, d.Pay, fb, Ink, X0 + 13f, fy);
-                Text(g, "банка:", f, Gray, X0, fy + 3.6f); Text(g, co.Str("bank"), f, Ink, X0 + 13f, fy + 3.6f);
-                Text(g, "BIC код:", f, Gray, X0, fy + 7.2f); Text(g, co.Str("bic"), f, Ink, X0 + 13f, fy + 7.2f);
-                Text(g, "IBAN:", f, Gray, X0, fy + 10.8f); Text(g, co.Str("iban"), f, Ink, X0 + 13f, fy + 10.8f);
+                string[] bl = { "плащане:", "банка:", "BIC код:", "IBAN:" }, bv = { d.Pay, co.Str("bank"), co.Str("bic"), co.Str("iban") };
+                for (int i = 0; i < 4; i++)
+                {
+                    float by2 = ft0 + 0.75f + i * 4.17f, vx = X0 + Width(g, bl[i], f) + SpaceW(f);
+                    Text(g, bl[i], f, Gray, X0, by2); Text(g, bv[i], i == 0 ? fb : f, Ink, vx, by2);
+                }
             }
             float colW = (W - 12f) / 3.25f, s1 = X0 + colW * 1.25f + 6f, s2 = s1 + colW + 6f;
-            using (Pen sp = new Pen(Ink, 0.2f)) { g.DrawLine(sp, s1, fy + 12f, s1 + colW, fy + 12f); g.DrawLine(sp, s2, fy + 12f, s2 + colW, fy + 12f); }
-            using (Font fc = new Font("Arial", 6.5f)) using (Font fn = new Font("Arial", 7.5f, FontStyle.Bold))
+            using (Pen sp = new Pen(SigLine, 0.3f)) { g.DrawLine(sp, s1, ft0 + 7.99f, s1 + colW, ft0 + 7.99f); g.DrawLine(sp, s2, ft0 + 7.99f, s2 + colW, ft0 + 7.99f); }
+            using (Font fc = new Font("Arial", 7.5f)) using (Font fn = new Font("Arial", 8.25f, FontStyle.Bold))
             {
-                TextC(g, "подпис на получателя", fc, Gray, s1, fy + 12.8f, colW);
-                TextC(g, "съставител", fc, Gray, s2, fy + 12.8f, colW);
-                TextC(g, d.Comp, fn, Ink, s2, fy + 16f, colW);
+                TextC(g, "подпис на получателя", fc, Dim2, s1, ft0 + 9.5f, colW);
+                TextC(g, "съставител", fc, Dim2, s2, ft0 + 9.5f, colW);
+                TextC(g, d.Comp, fn, Ink, s2, ft0 + 13.36f, colW);
             }
         }
 

@@ -179,6 +179,8 @@ namespace FakturaLite
             return d;
         }
 
+        public List<string> LastPriceUpdates = new List<string>();
+
         /// <summary>Appends the invoice to the register (same field layout as the full app) and moves the next number on.</summary>
         public JObj AddInvoice(Doc d)
         {
@@ -197,6 +199,15 @@ namespace FakturaLite
             rec["pay"] = d.Pay; rec["comp"] = d.Comp; rec["rate"] = Json.Num((double)d.Rate);
             rec["items"] = items;
             Invoices.Add(rec);
+            // a price typed on the invoice that differs from the article's saved price becomes the saved price (only for articles that already have one)
+            LastPriceUpdates = new List<string>();
+            foreach (Item it in UsedItems(d))
+            {
+                JObj a = FindArticle(it.Name);
+                if (a == null || a.Str("price").Length == 0) continue;
+                decimal old = Dec(a.Str("price")), now = Dec(it.Price);
+                if (old > 0m && now > 0m && Math.Abs(old - now) > 0.004m) { a["price"] = it.Price.Trim(); if (!LastPriceUpdates.Contains(it.Name)) LastPriceUpdates.Add(it.Name); }
+            }
             if (long.TryParse(d.No, out no) && no >= NextNo) NextNo = no + 1;
             return rec;
         }

@@ -385,8 +385,18 @@ function recordInvoice() {
     lines: calc.items.map(l => l.name), base: calc.base, dds: calc.vat, total: calc.total, pay: d.pay, comp: d.comp, rate: d.rate,
     items: calc.items.map(l => ({ name: l.name, code: l.code, qty: l.qty, price: l.price }))
   };
-  if (d.edit && S.invoices[d.edit.idx]) S.invoices[d.edit.idx] = rec; else S.invoices.push(rec);
+  if (d.edit && S.invoices[d.edit.idx]) { S.invoices[d.edit.idx] = rec; return []; }
+  S.invoices.push(rec);
+  // a price typed on a new invoice that differs from the article's saved price becomes the saved price
+  // (not when an old invoice is being corrected, and only for articles that already have a price)
+  const changed = [];
+  calc.items.forEach(l => {
+    const a = findArt(l.name), np = num(l.price);
+    if (a && a.price !== '' && a.price != null && num(a.price) > 0 && np > 0 && Math.abs(num(a.price) - np) > 0.004) { a.price = String(l.price).trim(); if (!changed.includes(a.name)) changed.push(a.name); }
+  });
+  return changed;
 }
+const priceNote = c => c && c.length ? ' Обновена е цената в артикулите: ' + c.join(', ') + '.' : '';
 function clearInvoice() {
   S.inv.client = ''; S.inv.date = today(); S.inv.tax = S.inv.date; S.inv.taxManual = false; S.inv.lines = blankLines(HALF);
   S.nextNo = (parseInt(S.nextNo) || 0) + 1;
@@ -505,15 +515,15 @@ $('#i_save').onclick = async () => {
   const m = validateInv(); if (m) return invMsg(m);
   if (!confirmWarnings()) return;
   const wasEdit = !!S.inv.edit, no = S.nextNo;
-  recordInvoice(); saveNow(); backupNow(); updateInvoice();
+  const upd = recordInvoice(); saveNow(); backupNow(); updateInvoice();
   await printSheet('p-inv');
-  afterRecord(); saveNow(); showTab('inv'); invMsg(wasEdit ? `Фактура № ${no} е обновена в регистъра.` : 'Фактурата е записана в „Издадени фактури“.', true);
+  afterRecord(); saveNow(); showTab('inv'); invMsg((wasEdit ? `Фактура № ${no} е обновена в регистъра.` : 'Фактурата е записана в „Издадени фактури“.') + priceNote(upd), true);
 };
 $('#i_saveonly').onclick = () => {
   const m = validateInv(); if (m) return invMsg(m);
   if (!confirmWarnings()) return;
   const wasEdit = !!S.inv.edit, no = S.nextNo;
-  recordInvoice(); afterRecord(); saveNow(); backupNow(); showTab('inv'); invMsg(wasEdit ? `Фактура № ${no} е обновена в регистъра.` : 'Фактурата е записана (без печат).', true);
+  const upd = recordInvoice(); afterRecord(); saveNow(); backupNow(); showTab('inv'); invMsg((wasEdit ? `Фактура № ${no} е обновена в регистъра.` : 'Фактурата е записана (без печат).') + priceNote(upd), true);
 };
 $('#i_print').onclick = () => { const m = validateInv(); if (m) return invMsg(m); printSheet('p-inv'); };
 $('#i_prev').onclick = () => showTab('prev');
@@ -1363,8 +1373,9 @@ $('#sy_auto').onclick = syncFromDrive;
 $('#syncBtn').onclick = syncFromDrive;
 
 /* ---------------- about / version ---------------- */
-const LITE_VERSION = '1.4.0';   // keep in sync with lite\Faktura-Lite.csproj
+const LITE_VERSION = '1.4.1';   // keep in sync with lite\Faktura-Lite.csproj
 const CHANGELOG = [
+  ['2.10.2', '16.10.2026', ['Ако при издаване на фактура цената на артикул е променена ръчно, новата цена се запазва в артикулите (и в преносимата версия)']],
   ['2.10.1', '16.10.2026', ['Червена лента при редакция на записана фактура или разписка', 'Разделите „Данни“ и „Преглед и печат“ са голяма лента с икони най-отгоре', 'Бутон „+ Добави“ в синьо и с голям плюс; долните бутони с икони и по-голям размер', 'Избор на акцентен цвят в Настройки']],
   ['2.10.0', '14.10.2026', ['Печатни документи: логото на фирмата е най-отгоре в средата на фактурата; в Настройки може да се качи собствено лого (PNG, JPG, SVG…), копира се и в преносимата версия', 'Фактурата е с 7 реда на половин лист, по-големи полета горе и долу, второто копие е по-близо до пунктираната линия', 'По-удобен печат за лазерни принтери: черен текст и линии, по-едър дребен шрифт, по-плътни рамки, сив фон на заглавния ред и на общата сума', 'Lite 1.4.0: печатът е с точно същия вид като в основното приложение']],
   ['2.9.0', '13.10.2026', ['Lite 1.3.0: печатът е същият като в пълната версия (без смаляване), точно подравнен спрямо хартията — отместването на принтера се чете от самия принтер', 'Lite: собствен преглед, който показва листа точно както ще се отпечата', 'Lite: бутон ✕ във всеки ред на артикулите за изтриване на реда']],

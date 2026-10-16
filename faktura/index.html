@@ -5,7 +5,9 @@
 <title>Фактури</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" type="image/png" href="icon.png">
-<script>try{var t=localStorage.getItem("fk.theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");document.documentElement.dataset.theme=t}catch(e){}</script>
+<script>try{var t=localStorage.getItem("fk.theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");document.documentElement.dataset.theme=t}catch(e){}
+function __acc(c){var s=document.documentElement.style;if(!c){["--acc","--accink","--hov","--focus"].forEach(function(k){s.removeProperty(k)});return}var n=parseInt(c.slice(1),16),R=n>>16&255,G=n>>8&255,B=n&255,l=(.299*R+.587*G+.114*B)/255;s.setProperty("--acc",c);s.setProperty("--accink",l>.62?"#111":"#fff");s.setProperty("--hov","rgba("+R+","+G+","+B+",.14)");s.setProperty("--focus","rgba("+R+","+G+","+B+",.45)")}
+try{var a=localStorage.getItem("fk.accent");if(a)__acc(a)}catch(e){}</script>
 <style>
 :root{color-scheme:light;--bg:#f3f4f6;--card:#fff;--ink:#1c2230;--mut:#6a7284;--line:#d9dde5;--acc:#1f6feb;--ok:#e6f4ea;--bad:#fde8e6;--warn:#fff4cc;
  --inp:#fff;--btn:#e8ebf1;--hov:#e7f0fe;--hd:#1c2230;--focus:#bcd3fb;--q:#f1f3f7;--errb:#f1b5af;--okb:#b5dcc0;--warnb:#e6cf7a;--sep:#f0f1f4}
@@ -25,6 +27,14 @@ body{margin:0;font:14px/1.4 "Segoe UI",system-ui,sans-serif;background:var(--bg)
 #side .sb svg{width:25px;height:25px;flex:none}
 #side .sb:hover{background:rgba(255,255,255,.09);color:#fff}
 #side .sb.on{color:#fff;background:rgba(255,255,255,.13);border-left-color:var(--acc)}
+#side{position:relative}
+#subbar{position:sticky;top:0;z-index:7;background:var(--bg);margin:0 -14px 4px;padding:2px 14px 12px}
+#subbar .sub{display:none;gap:10px;flex-wrap:wrap}
+#subbar .sub.open{display:flex}
+#subbar .ss{display:flex;align-items:center;gap:10px;padding:10px 20px;border-radius:10px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:15px;font-weight:600;cursor:pointer;line-height:1.2}
+#subbar .ss svg{width:24px;height:24px;flex:none}
+#subbar .ss:hover{border-color:var(--acc);background:var(--hov)}
+#subbar .ss.on{background:var(--acc);border-color:var(--acc);color:var(--accink,#fff);box-shadow:0 2px 8px rgba(0,0,0,.35)}
 #side .grp{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.6;text-align:center;margin:6px 0 1px;padding-top:6px;border-top:1px solid rgba(255,255,255,.14)}
 #side .sp{flex:1;min-height:6px}
 #side .pbadge{margin:2px 2px 6px;white-space:normal;text-align:center}
@@ -37,10 +47,17 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:2px}
 input,select,textarea{width:100%;padding:5px 7px;border:1px solid var(--line);border-radius:5px;font:inherit;background:var(--inp);color:var(--ink)}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--focus);border-color:var(--acc)}
 input[type=checkbox]{width:auto}
-button.b{background:var(--acc);color:#fff;border:0;border-radius:5px;padding:7px 14px;cursor:pointer;font:inherit}
+button.b{background:var(--acc);color:var(--accink,#fff);border:0;border-radius:5px;padding:7px 14px;cursor:pointer;font:inherit}
 button.b.g{background:var(--btn);color:var(--ink)}
 button.b.r{background:#d93025}
 button.b.s{padding:3px 8px;font-size:12px}
+/* the "Добави" button of the Клиенти / Доставчици / Артикули lists: the accent blue and a big + */
+button.bigbtn{display:inline-flex;align-items:center;gap:10px;font-size:15px;font-weight:700;padding:10px 20px 10px 16px}
+button.bigbtn svg{width:22px;height:22px;flex:none}
+.swb{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
+.swb:hover{border-color:var(--ink)}
+button.addbtn{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:700;padding:6px 18px 6px 14px}
+button.addbtn .plus{font-size:28px;font-weight:400;line-height:1;margin-top:-3px}
 table.t{border-collapse:collapse;width:100%}
 .t th,.t td{padding:3px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
 .t th{font-size:12px;color:var(--mut);font-weight:600;position:sticky;top:0;background:var(--card)}
@@ -75,9 +92,11 @@ dialog .f{margin-bottom:9px}
 #v_t tr.q td{background:var(--q);font-weight:600}#v_t tr.tt td{background:#1d2330;color:#fff;font-weight:700}
 #v_t a{color:var(--acc);text-decoration:none}
 .warn{background:var(--warn)!important;border-color:var(--warnb)!important}
-.seg{display:flex;gap:3px;margin:0 0 12px;padding:3px;background:var(--btn);border-radius:8px;width:max-content;max-width:100%;flex-wrap:wrap}
-.seg button{border:0;background:none;color:var(--mut);padding:6px 14px;border-radius:6px;cursor:pointer;font:inherit}
-.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.18);font-weight:600}
+/* editing a saved invoice / receipt: a red bar that stays at the top while scrolling */
+.editbar{background:#c62828!important;color:#fff;border:2px solid #8e0000!important;border-radius:6px;padding:12px 16px;margin:0 0 12px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:68px;z-index:6;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+.editbar::before{content:"\26A0";font-size:24px;line-height:1}
+.editbar span{flex:1;min-width:240px}
+.editbar .b{background:#fff!important;color:#8e0000!important;border:0!important;font-weight:700}
 .lnk{float:right;display:flex;gap:12px}.lnk a{text-decoration:none}
 .clr{position:relative}.clr input{padding-right:28px}
 .clrbtn{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--mut);cursor:pointer;font-size:14px;line-height:1;padding:4px 6px;border-radius:4px}
@@ -179,11 +198,24 @@ dialog .f{margin-bottom:9px}
 </nav>
 <div id="scroller">
 <main>
+<div id="subbar" class="noprint hide">
+ <div class="sub" data-for="inv">
+  <button class="ss" data-t="inv" title="Данни"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span>Данни</span></button>
+  <button class="ss" data-t="prev" title="Преглед и печат"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/></svg><span>Преглед и печат</span></button>
+ </div>
+ <div class="sub" data-for="stock">
+  <button class="ss" data-t="stock" title="Данни"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span>Данни</span></button>
+  <button class="ss" data-t="sprev" title="Преглед и печат"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/></svg><span>Преглед и печат</span></button>
+ </div>
+ <div class="sub" data-for="issued">
+  <button class="ss" data-t="reg" title="Издадени фактури"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg><span>Издадени фактури</span></button>
+  <button class="ss" data-t="sreg" title="Издадени разписки"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>Издадени разписки</span></button>
+ </div>
+</div>
 
 <section class="tab" id="tab-inv">
- <div class="seg noprint" data-seg="inv"></div>
  <div class="card noprint">
-  <div id="i_edit" class="err warn hide"><span id="i_editTxt"></span> <button class="b g s" id="i_cancelEdit">Отказ</button></div>
+  <div id="i_edit" class="editbar hide"><span id="i_editTxt"></span> <button class="b g s" id="i_cancelEdit">Отказ</button></div>
   <div class="grid" style="grid-template-columns:2fr 1fr 1fr 1fr">
    <div><label>Получател (клиент) <span class="lnk"><a href="#" id="i_editClient" class="hide">редактирай</a><a href="#" id="i_addClient">+ нов клиент</a></span></label><div class="clr"><input id="i_client" data-search="clients" autocomplete="off" placeholder="Търсене по име, ЕИК, адрес…"><button type="button" class="clrbtn hide" id="i_clientX" title="Изчисти">✕</button></div></div>
    <div><label>Фактура №</label><input id="i_no" inputmode="numeric" autocomplete="off" title="Номерът се печата с водещи нули (10 цифри)"></div>
@@ -203,18 +235,17 @@ dialog .f{margin-bottom:9px}
   <div class="tot"><div class="mut">Данъчна основа<b id="t_base"></b></div><div class="mut"><span id="t_vatl">ДДС</span><b id="t_vat"></b></div><div class="mut">Сума за плащане<b id="t_tot"></b></div></div>
   <div id="i_msg"></div>
   <div class="row" style="margin-top:10px">
-   <button class="b g" id="i_prev">Преглед →</button>
-   <button class="b" id="i_save">Печат и запис</button>
-   <button class="b g" id="i_print">Само печат</button>
-   <button class="b g" id="i_saveonly">Само запис</button>
-   <button class="b g" id="i_clear">Изчисти</button>
+   <button class="b g bigbtn" id="i_prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>Преглед</button>
+   <button class="b bigbtn" id="i_save"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/></svg>Печат и запис</button>
+   <button class="b g bigbtn" id="i_print"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/></svg>Само печат</button>
+   <button class="b g bigbtn" id="i_saveonly"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Само запис</button>
+   <button class="b g bigbtn" id="i_clear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>Изчисти</button>
    <span class="mut">„Печат и запис“ записва фактурата в Издадени фактури, отпечатва я, изчиства формата и вдига номера с 1. <b>Ctrl+P</b> печат и запис · <b>Ctrl+S</b> само запис · <b>Ctrl+N</b> нова фактура</span>
   </div>
  </div>
  </section>
 
 <section class="tab hide" id="tab-prev">
- <div class="seg noprint" data-seg="inv"></div>
  <div class="card noprint">
   <div class="row">
    <button class="b g" id="p_back">← Към формата</button>
@@ -229,9 +260,8 @@ dialog .f{margin-bottom:9px}
 </section>
 
 <section class="tab hide" id="tab-stock">
- <div class="seg noprint" data-seg="stock"></div>
  <div class="card noprint">
-  <div id="s_edit" class="err warn hide"><span id="s_editTxt"></span> <button class="b g s" id="s_cancelEdit">Отказ</button></div>
+  <div id="s_edit" class="editbar hide"><span id="s_editTxt"></span> <button class="b g s" id="s_cancelEdit">Отказ</button></div>
   <div class="grid" style="grid-template-columns:2fr 1fr 1fr">
    <div><label>Доставчик <span class="lnk"><a href="#" id="s_editSup" class="hide">редактирай</a><a href="#" id="s_addSup">+ нов доставчик</a></span></label><div class="clr"><input id="s_sup" data-search="sups" autocomplete="off" placeholder="Търсене по име, ЕИК, адрес…"><button type="button" class="clrbtn hide" id="s_supX" title="Изчисти">✕</button></div></div>
    <div><label>Дата</label><input id="s_date" type="date"></div>
@@ -245,18 +275,17 @@ dialog .f{margin-bottom:9px}
   <div class="tot"><div class="mut">Всичко<b id="st_tot"></b></div></div>
   <div id="s_msg"></div>
   <div class="row" style="margin-top:10px">
-   <button class="b g" id="s_prev">Преглед →</button>
-   <button class="b" id="s_save">Печат и запис</button>
-   <button class="b g" id="s_print">Само печат</button>
-   <button class="b g" id="s_saveonly">Само запис</button>
-   <button class="b g" id="s_clear">Изчисти</button>
+   <button class="b g bigbtn" id="s_prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>Преглед</button>
+   <button class="b bigbtn" id="s_save"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/></svg>Печат и запис</button>
+   <button class="b g bigbtn" id="s_print"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/></svg>Само печат</button>
+   <button class="b g bigbtn" id="s_saveonly"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Само запис</button>
+   <button class="b g bigbtn" id="s_clear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>Изчисти</button>
    <span class="mut">„Печат и запис“ записва разписката в Издадени разписки, отпечатва я, изчиства формата и вдига номера с 1. <b>Ctrl+P</b> печат и запис · <b>Ctrl+S</b> само запис · <b>Ctrl+N</b> нова разписка</span>
   </div>
  </div>
 </section>
 
 <section class="tab hide" id="tab-sprev">
- <div class="seg noprint" data-seg="stock"></div>
  <div class="card noprint">
   <div class="row">
    <button class="b g" id="sp_back">← Към формата</button>
@@ -271,7 +300,6 @@ dialog .f{margin-bottom:9px}
 </section>
 
 <section class="tab hide" id="tab-sreg">
- <div class="seg noprint" data-seg="issued"></div>
  <div class="card">
   <h2>Издадени складови разписки</h2>
   <div class="row" style="margin-bottom:8px">
@@ -287,7 +315,6 @@ dialog .f{margin-bottom:9px}
 </section>
 
 <section class="tab hide" id="tab-reg">
- <div class="seg noprint" data-seg="issued"></div>
  <div class="card">
   <h2>Издадени фактури</h2>
   <div class="row" style="margin-bottom:8px">
@@ -350,6 +377,15 @@ dialog .f{margin-bottom:9px}
   </div>
   <div style="margin-top:10px"><label style="display:inline"><input type="checkbox" id="c_logo"> Показвай логото във фактурата</label></div>
   <div id="lg_msg"></div>
+ </div>
+<div class="card"><h2>Акцентен цвят</h2>
+  <div class="mut" style="margin-bottom:8px">Цветът на основните бутони („Печат и запис“, „Добави“), на избрания раздел и на връзките. Важи за светлия и за тъмния режим.</div>
+  <div class="row" style="align-items:center;gap:12px">
+   <input type="color" id="ac_pick" value="#1f6feb" style="width:64px;height:40px;padding:2px;cursor:pointer" title="Избери цвят">
+   <span id="ac_sw" style="display:flex;gap:8px"><button class="swb" data-c="#1f6feb" title="#1f6feb" style="background:#1f6feb"></button><button class="swb" data-c="#0f9d8a" title="#0f9d8a" style="background:#0f9d8a"></button><button class="swb" data-c="#2e7d32" title="#2e7d32" style="background:#2e7d32"></button><button class="swb" data-c="#6a3fcf" title="#6a3fcf" style="background:#6a3fcf"></button><button class="swb" data-c="#d81b60" title="#d81b60" style="background:#d81b60"></button><button class="swb" data-c="#e65100" title="#e65100" style="background:#e65100"></button><button class="swb" data-c="#455a64" title="#455a64" style="background:#455a64"></button></span>
+   <button class="b g" id="ac_reset">Стандартен цвят</button>
+   <button class="b" id="ac_demo" tabindex="-1" style="pointer-events:none">Пример</button>
+  </div>
  </div>
  <div class="card"><h2>Списъци (по един ред на запис)</h2>
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">

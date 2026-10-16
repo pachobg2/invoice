@@ -172,13 +172,13 @@ const SEARCH = {
 
 /* ---------------- tabs ---------------- */
 const GROUP = { inv: 'inv', prev: 'inv', stock: 'stock', sprev: 'stock', reg: 'issued', sreg: 'issued' };
-const SEGS = { inv: [['inv', 'Данни'], ['prev', 'Преглед и печат']], stock: [['stock', 'Данни'], ['sprev', 'Преглед и печат']], issued: [['reg', 'Издадени фактури'], ['sreg', 'Издадени разписки']] };
 let lastIssued = 'reg';
-$$('.seg').forEach(el => { el.innerHTML = SEGS[el.dataset.seg].map(([t, l]) => `<button data-t="${t}">${l}</button>`).join(''); });
 function showTab(t) {
   const g = GROUP[t] || t; if (g === 'issued') lastIssued = t;
   $$('#side button[data-g]').forEach(b => b.classList.toggle('on', b.dataset.g === g));
-  $$('.seg button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  $$('#subbar .sub').forEach(s => s.classList.toggle('open', s.dataset.for === g));
+  $$('#subbar .ss').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  $('#subbar').classList.toggle('hide', !$('#subbar .sub[data-for="' + g + '"]'));
   $$('.tab').forEach(s => s.classList.toggle('hide', s.id !== 'tab-' + t));
   if (t === 'reg') renderReg();
   if (t === 'vat') { renderVat(); renderJournal(); }
@@ -192,8 +192,8 @@ function showTab(t) {
   try { sessionStorage.setItem('tab', t); } catch (e) { }
   $('#scroller').scrollTop = 0;
 }
-$$('#side button[data-t]').forEach(b => b.onclick = () => showTab(b.dataset.g === 'issued' ? lastIssued : b.dataset.t));
-$$('.seg button').forEach(b => b.onclick = () => showTab(b.dataset.t));
+$$('#subbar .ss').forEach(b => b.onclick = () => showTab(b.dataset.t));
+$$('#side button[data-t]').forEach(b => b.onclick = () => showTab(b.dataset.g === 'issued' ? lastIssued : b.dataset.t));   // the group buttons and their sub items (Данни / Преглед и печат ...)
 
 /* ---------------- light / dark theme ---------------- */
 const ICON_SUN = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
@@ -965,7 +965,7 @@ function makeList(host, key, cols, maxName, statsFn) {
     render() {
       const sel = sortOf();
       const opts = ['<option value="">По ред на въвеждане</option>'].concat(sortable.flatMap(c => [1, -1].map(d => ({ c, d })).sort((a, b) => (kindOf(c) === 'text' ? b.d - a.d : a.d - b.d)).map(({ c, d }) => `<option value="${c.k}|${d}" ${sel && sel.k === c.k && sel.d === d ? 'selected' : ''}>${esc(label(c, d))}</option>`))).join('');
-      el.innerHTML = `<div class="row" style="margin-bottom:8px"><div style="width:280px"><label>Търсене</label><input class="lq" value="${esc(q)}"></div><div style="width:290px"><label>Подреди по</label><select class="lsort">${opts}</select></div><button class="b g add">+ Добави</button><span class="mut cnt"></span></div>
+      el.innerHTML = `<div class="row" style="margin-bottom:8px"><div style="width:280px"><label>Търсене</label><input class="lq" value="${esc(q)}"></div><div style="width:290px"><label>Подреди по</label><select class="lsort">${opts}</select></div><button class="b add addbtn"><span class="plus">+</span>Добави</button><span class="mut cnt"></span></div>
        <div class="scroll"><table class="t"><thead><tr>${cols.map(c => { const on = sel && sel.k === c.k; return `<th ${(c.kind || !c.ro) ? `class="srt" data-s="${c.k}"` : ''} title="${(c.kind || !c.ro) ? 'Кликнете за подреждане' : ''}">${c.h}${on ? (sel.d === 1 ? ' ▲' : ' ▼') : ''}</th>`; }).join('')}<th></th></tr></thead><tbody></tbody></table></div><div class="err hide"></div>`;
       $('.lq', el).oninput = e => { q = e.target.value; api.rows(); };
       $('.lsort', el).onchange = e => { const v = e.target.value; if (!v) setSort(null); else { const [k, d] = v.split('|'); setSort(k, +d); } api.render(); };
@@ -1041,7 +1041,7 @@ function renderSettings() {
   renderAbout();
   applyPortableUi();
   $$('[data-c]').forEach(e => e.value = S.company[e.dataset.c] || '');
-  $('#c_next').value = S.nextNo; $('#c_rate').value = S.rate; renderLogoCard();
+  $('#c_next').value = S.nextNo; $('#c_rate').value = S.rate; renderLogoCard(); renderAccentCard();
   if (HOST) { $('#bk_host').classList.remove('hide'); hostCall('info').then(i => { $('#bk_info').innerHTML = `Всички данни са на едно място: <b>${esc(i.dataDir)}</b><br>data.json — документи, клиенти, доставчици, артикули и настройки · backups\\ — автоматични архиви (при всеки записан документ и веднъж дневно, последните ${i.keep}): ${i.count} файла${i.last ? ', последен ' + esc(i.last) : ''} · config.json — позиция на прозореца`; }).catch(() => { }); }
   $('#x_units').value = S.units.join('\n'); $('#x_pays').value = S.payments.join('\n'); $('#x_comps').value = S.compilers.join('\n');
 }
@@ -1365,6 +1365,7 @@ $('#syncBtn').onclick = syncFromDrive;
 /* ---------------- about / version ---------------- */
 const LITE_VERSION = '1.4.0';   // keep in sync with lite\Faktura-Lite.csproj
 const CHANGELOG = [
+  ['2.10.1', '16.10.2026', ['Червена лента при редакция на записана фактура или разписка', 'Разделите „Данни“ и „Преглед и печат“ са голяма лента с икони най-отгоре', 'Бутон „+ Добави“ в синьо и с голям плюс; долните бутони с икони и по-голям размер', 'Избор на акцентен цвят в Настройки']],
   ['2.10.0', '14.10.2026', ['Печатни документи: логото на фирмата е най-отгоре в средата на фактурата; в Настройки може да се качи собствено лого (PNG, JPG, SVG…), копира се и в преносимата версия', 'Фактурата е с 7 реда на половин лист, по-големи полета горе и долу, второто копие е по-близо до пунктираната линия', 'По-удобен печат за лазерни принтери: черен текст и линии, по-едър дребен шрифт, по-плътни рамки, сив фон на заглавния ред и на общата сума', 'Lite 1.4.0: печатът е с точно същия вид като в основното приложение']],
   ['2.9.0', '13.10.2026', ['Lite 1.3.0: печатът е същият като в пълната версия (без смаляване), точно подравнен спрямо хартията — отместването на принтера се чете от самия принтер', 'Lite: собствен преглед, който показва листа точно както ще се отпечата', 'Lite: бутон ✕ във всеки ред на артикулите за изтриване на реда']],
   ['2.8.2', '13.10.2026', ['Lite 1.2.1: поправена грешка при щракване върху полето за клиент (Object reference not set to an instance of an object)']],
@@ -1411,6 +1412,17 @@ document.addEventListener('keydown', e => {
 }, true);
 
 /* ---------------- updates (GitHub releases of pachobg2/invoice) ---------------- */
+/* ---------------- accent colour ---------------- */
+function setAccent(c) {
+  S.accent = c || '';
+  try { if (c) localStorage.setItem('fk.accent', c); else localStorage.removeItem('fk.accent'); } catch (e) { }
+  __acc(c || null); save(); renderAccentCard();
+}
+function renderAccentCard() { const p = $('#ac_pick'); if (p) p.value = S.accent || '#1f6feb'; }
+$('#ac_pick').oninput = e => setAccent(e.target.value);
+$('#ac_sw').onclick = e => { const b = e.target.closest('[data-c]'); if (b) setAccent(b.dataset.c); };
+$('#ac_reset').onclick = () => setAccent('');
+
 const UPD_KEY = 'invoice_update';
 function updPref() { try { return JSON.parse(localStorage.getItem(UPD_KEY) || '{}'); } catch (e) { return {}; } }
 function updSet(o) { try { localStorage.setItem(UPD_KEY, JSON.stringify(Object.assign(updPref(), o))); } catch (e) { } }
@@ -1537,6 +1549,7 @@ $('#lg_del').onclick = () => { if (confirm('Да премахна ли лого�
 (async () => {
   await load();
   await migrateLogo();
+  __acc(S.accent || null); try { if (S.accent) localStorage.setItem('fk.accent', S.accent); else localStorage.removeItem('fk.accent'); } catch (e) { }
   S.rate = S.rate ?? 20;
   ensureStock();
   applyPortableUi();

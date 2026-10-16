@@ -222,7 +222,7 @@ namespace FakturaLite
             using (Image logo = Logo(st))
                 if (logo != null && logo.Width > 0 && logo.Height > 0)
                 {
-                    float k = Math.Min(10.5f / logo.Height, 50f / logo.Width), lw = logo.Width * k, lh = logo.Height * k;
+                    float k = Math.Min(8.5f / logo.Height, 42f / logo.Width), lw = logo.Width * k, lh = logo.Height * k;
                     g.InterpolationMode = InterpolationMode.HighQualityBicubic;
                     g.DrawImage(logo, 105f - lw / 2f, y + 14.28f - lh, lw, lh);
                 }

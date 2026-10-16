@@ -487,6 +487,25 @@ class MainForm : Form
                         break;
                     }
                 case "testDriveArrival": if (TestRoot != null) ArmDriveTimer(); break;   // tests only
+                case "sendData":
+                    {
+                        var info = arg["info"]?.GetValue<string>() ?? "";
+                        var zip = SendData.MakeZip(arg["state"]!.GetValue<string>(), info);
+                        var url = SendData.Endpoint; var test = TestRoot != null;
+                        if (test && Environment.GetEnvironmentVariable("FAKTURA_SEND_URL") is string tu && tu.Length > 0) url = tu;   // tests only
+                        if (url.Length == 0) { result = new { sent = false, reason = "noendpoint", message = "", file = zip, kb = 0L }; break; }
+                        if (!SendData.Allowed(url, test)) throw new Exception("Невалиден адрес за изпращане.");
+                        try { await SendData.Upload(zip, info, Updater.Current.ToString(), url); result = new { sent = true, reason = "", message = "", file = zip, kb = new FileInfo(zip).Length / 1024 }; }
+                        catch (Exception ex) { result = new { sent = false, reason = "error", message = ex.Message, file = zip, kb = 0L }; }
+                        break;
+                    }
+                case "revealFile":
+                    {
+                        var path = Path.GetFullPath(arg.GetValue<string>());
+                        if (!path.StartsWith(SendData.FolderPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || !File.Exists(path)) throw new Exception("Файлът не е намерен.");
+                        if (TestRoot == null) Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+                        break;
+                    }
                 case "updateCheck": result = await Updater.Check(); break;
                 case "updateInstall":
                     await Updater.Install(pct => { try { web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { ev = "upd", pct })); } catch { } });

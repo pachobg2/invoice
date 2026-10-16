@@ -307,6 +307,11 @@ namespace FakturaLite
                 float w1 = Width(g, l1, fi) + SpaceW(fi), w2 = Width(g, l2, fi) + SpaceW(fi);
                 Text(g, l1, fi, Ink, X0, sy + 1.56f); g.DrawString(Words.Slov(d.Vat), fv, b, new RectangleF(X0 + w1, sy + 1.56f, W - 69f - w1, 9f), wrap);
                 Text(g, l2, fi, Ink, X0, sy + 5.87f); g.DrawString(Words.Slov(d.Total), fv, b, new RectangleF(X0 + w2, sy + 5.87f, W - 69f - w2, 9f), wrap);
+                if (d.NoVat)
+                {
+                    string l3 = "Основание за неначисляване на ДДС: "; float w3 = Width(g, l3, fi) + SpaceW(fi);
+                    Text(g, l3, fi, Ink, X0, sy + 10.18f); g.DrawString(d.NoVatReason, fv, b, new RectangleF(X0 + w3, sy + 10.18f, W - 69f - w3, 9f), wrap);
+                }
             }
             float tx = X0 + W - 64f;
             using (Font f = new Font("Arial", 7.875f))

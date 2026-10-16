@@ -83,7 +83,7 @@ if (HOST) HOST.addEventListener('message', e => { const m = e.data || {}; if (m.
 const hostCall = (cmd, arg) => new Promise((res, rej) => {
   if (!HOST) return rej(new Error('no host'));
   const id = ++hostSeq; hostPending[id] = { res, rej }; HOST.postMessage({ id, cmd, arg });
-  setTimeout(() => { if (hostPending[id]) { delete hostPending[id]; rej(new Error('timeout')); } }, cmd === 'pdf' || cmd === 'setBackupDir' || cmd === 'updateInstall' ? 600000 : 20000);
+  setTimeout(() => { if (hostPending[id]) { delete hostPending[id]; rej(new Error('timeout')); } }, cmd === 'pdf' || cmd === 'setBackupDir' || cmd === 'updateInstall' || cmd === 'sendData' ? 600000 : 20000);
 });
 async function load() {
   if (HOST) { try { const j = await hostCall('load'); if (j) { S = JSON.parse(j); return; } } catch (e) { } }
@@ -186,6 +186,7 @@ function showTab(t) {
   if (t === 'sups') lists.sups.render();
   if (t === 'arts') lists.arts.render();
   if (t === 'set') renderSettings();
+  if (t === 'about') renderAbout();
   if (t === 'inv' || t === 'prev') renderInvoice();
   if (t === 'stock' || t === 'sprev') renderStock();
   if (t === 'sreg') renderSReg();
@@ -293,6 +294,12 @@ function addInvRow(focus) {
   S.inv.lines.push({ name: '', code: '', qty: '', price: '' }); save(); buildInvoiceForm(); updateInvoice();
   if (focus) { const r = $$('#i_items tbody tr').pop(); $('[data-f=name]', r).focus(); }
 }
+const effRate = d => d.noVat ? 0 : d.edit ? (d.edit.rate0 > 0 || !d.edit.wasNoVat ? d.edit.rate0 : S.rate) : S.rate;
+function syncNoVat() {
+  const d = S.inv;
+  $('#i_noVat').checked = !!d.noVat; $('#i_noVatBox').classList.toggle('hide', !d.noVat);
+  $('#i_noVatWhy').value = d.noVatReason || ''; $('#i_noVatPre').value = '';
+}
 function syncInvForm() {
   const d = S.inv;
   if (d.taxManual === undefined) d.taxManual = !!d.tax && d.tax !== d.date;
@@ -300,7 +307,8 @@ function syncInvForm() {
   $('#i_client').value = d.client; $('#i_no').value = padNo(S.nextNo); $('#i_date').value = d.date; $('#i_tax').value = d.tax;
   $('#i_taxReset').classList.toggle('hide', !d.taxManual);
   fillSelect($('#i_pay'), S.payments, d.pay); fillSelect($('#i_comp'), S.compilers, d.comp);
-  if (!d.edit) d.rate = S.rate; // VAT rate comes from Настройки (a reopened invoice keeps its own)
+  d.rate = effRate(d); // VAT rate comes from Настройки (a reopened invoice keeps its own); 0 for an invoice without VAT
+  syncNoVat();
   $('#i_orig').value = d.orig;
   if (!d.lines.length) d.lines = blankLines(1);
   const eb = $('#i_edit'); eb.classList.toggle('hide', !d.edit);
@@ -320,7 +328,7 @@ function copyHtml(d, c, calc, orig, items, o) { // o: {start, pad, last, pg}
   let rows = items.map((l, i) => `<tr><td class="c">${o.start + i + 1}</td><td>${esc(l.name)}</td><td class="c">${esc(l.code)}</td><td class="c">${qtyFmt(l.qty)}</td><td class="n">${eur(num(l.price))}</td><td class="n">${eur(l.val)}</td></tr>`).join('');
   for (let i = items.length; i < o.pad; i++) rows += '<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>';
   const party = (lbl, nm, p) => `<div class="pbox"><div class="lbl">${lbl}</div><div class="nm">${nm}</div><div class="kv"><span>Адрес:</span><span>${esc(p?.addr)}</span><span>№ по ЗДДС:</span><span>${esc(p?.vat)}</span><span>ЕИК/ЕГН:</span><span>${esc(p?.eik)}</span><span>МОЛ:</span><span>${esc(p?.mol)}</span></div></div>`;
-  const tail = o.last ? `<div class="iv-sum"><div class="iv-words">ДДС словом: <b>${esc(slov(calc.vat))}</b><br>Сума за плащане словом: <b>${esc(slov(calc.total))}</b></div>
+  const tail = o.last ? `<div class="iv-sum"><div class="iv-words">ДДС словом: <b>${esc(slov(calc.vat))}</b><br>Сума за плащане словом: <b>${esc(slov(calc.total))}</b>${d.noVat ? `<br>Основание за неначисляване на ДДС: <b>${esc(d.noVatReason)}</b>` : ''}</div>
    <table class="iv-tot"><tr><td>дан. основа:</td><td>${eur(calc.base)}</td></tr><tr><td>ДДС ставка:</td><td>${num(d.rate)}%</td></tr><tr><td>ДДС:</td><td>${eur(calc.vat)}</td></tr><tr class="g"><td>сума за плащане:</td><td>${eur(calc.total)}</td></tr></table></div>
   <div class="iv-foot"><div class="bank"><span>плащане:</span> <b>${esc(d.pay)}</b><br><span>банка:</span> ${esc(co.bank)}<br><span>BIC код:</span> ${esc(co.bic)}<br><span>IBAN:</span> ${esc(co.iban)}</div>
    <div class="sg">подпис на получателя<b>&nbsp;</b></div>
@@ -376,6 +384,7 @@ function validateInv() {
   if (!findClient(d.client)) return 'Клиентът не е в списъка „Клиенти“. Добавете го първо.';
   if (!d.date) return 'Няма дата!';
   if (!d.lines.some(l => l.name.trim())) return 'Няма добавени стоки!';
+  if (d.noVat && !(d.noVatReason || '').trim()) return 'Фактура без ДДС: въведете основание за неначисляване на ДДС.';
   return '';
 }
 function recordInvoice() {
@@ -383,8 +392,10 @@ function recordInvoice() {
   const rec = {
     date: d.date, tax: d.tax, no, client: d.client, vat: c.vat || '', eik: c.eik || '',
     lines: calc.items.map(l => l.name), base: calc.base, dds: calc.vat, total: calc.total, pay: d.pay, comp: d.comp, rate: d.rate,
+    ...(d.noVat ? { noVat: true, noVatReason: d.noVatReason.trim() } : {}),
     items: calc.items.map(l => ({ name: l.name, code: l.code, qty: l.qty, price: l.price }))
   };
+  if (d.noVat) S.noVatLast = d.noVatReason.trim();
   if (d.edit && S.invoices[d.edit.idx]) { S.invoices[d.edit.idx] = rec; return []; }
   S.invoices.push(rec);
   // a price typed on a new invoice that differs from the article's saved price becomes the saved price
@@ -398,7 +409,7 @@ function recordInvoice() {
 }
 const priceNote = c => c && c.length ? ' Обновена е цената в артикулите: ' + c.join(', ') + '.' : '';
 function clearInvoice() {
-  S.inv.client = ''; S.inv.date = today(); S.inv.tax = S.inv.date; S.inv.taxManual = false; S.inv.lines = blankLines(HALF);
+  S.inv.client = ''; S.inv.date = today(); S.inv.tax = S.inv.date; S.inv.taxManual = false; S.inv.lines = blankLines(HALF); S.inv.noVat = false; S.inv.noVatReason = ''; S.inv.rate = S.rate;
   S.nextNo = (parseInt(S.nextNo) || 0) + 1;
 }
 function printSheet(cls) {
@@ -418,7 +429,7 @@ function openInvoice(idx) {
   const r = S.invoices[idx]; if (!r || !r.items) return;
   if (S.inv.edit) { if (!confirm('Излизате от режим „редакция“ на друга фактура без запис. Продължавам?')) return; endEdit(); }
   const stash = JSON.parse(JSON.stringify(S.inv)); delete stash.edit;
-  S.inv = { client: r.client, date: r.date, tax: r.tax || r.date, taxManual: !!r.tax && r.tax !== r.date, pay: r.pay, comp: r.comp || stash.comp, rate: r.rate ?? S.rate, orig: stash.orig, lines: r.items.map(x => ({ ...x })), edit: { idx, no: r.no, stash, prevNext: S.nextNo } };
+  S.inv = { client: r.client, date: r.date, tax: r.tax || r.date, taxManual: !!r.tax && r.tax !== r.date, pay: r.pay, comp: r.comp || stash.comp, rate: r.rate ?? S.rate, orig: stash.orig, lines: r.items.map(x => ({ ...x })), noVat: !!r.noVat, noVatReason: r.noVatReason || '', edit: { idx, no: r.no, stash, prevNext: S.nextNo, rate0: +(r.rate ?? S.rate), wasNoVat: !!r.noVat } };
   S.nextNo = r.no; saveNow(); showTab('inv'); invMsg('');
 }
 function copyInvoice(idx) {
@@ -428,7 +439,7 @@ function copyInvoice(idx) {
   let lines;
   if (r.items) lines = r.items.map(x => ({ ...x }));
   else { const names = r.lines.filter(Boolean); lines = names.map(n => ({ name: n, code: S.units[0] || '', qty: '1', price: names.length === 1 && r.base ? String(r.base) : '' })); }
-  Object.assign(S.inv, { client: r.client, date: today(), tax: today(), taxManual: false, pay: r.pay || S.inv.pay, comp: r.comp || S.inv.comp, lines: lines.length ? lines : blankLines(HALF) });
+  Object.assign(S.inv, { client: r.client, date: today(), tax: today(), taxManual: false, pay: r.pay || S.inv.pay, comp: r.comp || S.inv.comp, noVat: !!r.noVat, noVatReason: r.noVatReason || '', lines: lines.length ? lines : blankLines(HALF) });
   saveNow(); showTab('inv');
   invMsg(r.items ? `Копирана е фактура № ${r.no}. Проверете количествата и цените.` : `Копирани са наименованията от стария запис № ${r.no} (старите записи нямат количества и цени) — попълнете ги.`, true);
 }
@@ -478,6 +489,9 @@ $('#tab-inv').addEventListener('input', e => {
   else if (t.id === 'i_pay') d.pay = t.value;
   else if (t.id === 'i_comp') d.comp = t.value;
   else if (t.id === 'i_orig') d.orig = t.value;
+  else if (t.id === 'i_noVat') { d.noVat = t.checked; if (d.noVat && !d.noVatReason) d.noVatReason = S.noVatLast || ''; d.rate = effRate(d); syncNoVat(); if (d.noVat && !d.noVatReason) $('#i_noVatWhy').focus(); }
+  else if (t.id === 'i_noVatPre') { if (t.value) { d.noVatReason = t.value; $('#i_noVatWhy').value = t.value; } }
+  else if (t.id === 'i_noVatWhy') d.noVatReason = t.value;
   else if (t.dataset.f) {
     if (t.tagName === 'TEXTAREA') { if (/\n/.test(t.value)) t.value = t.value.replace(/\s*\n+\s*/g, ' '); grow(t); }
     const tr = t.closest('tr'), l = d.lines[tr.dataset.i]; l[t.dataset.f] = t.value;
@@ -530,7 +544,7 @@ $('#i_prev').onclick = () => showTab('prev');
 $('#p_back').onclick = () => showTab('inv');
 $('#p_save').onclick = () => $('#i_save').onclick();
 $('#p_print').onclick = () => $('#i_print').onclick();
-$('#i_clear').onclick = () => { if (S.inv.edit) { endEdit(); } else { S.inv.client = ''; S.inv.tax = S.inv.date; S.inv.taxManual = false; S.inv.lines = blankLines(HALF); } save(); invMsg(''); syncInvForm(); updateInvoice(); };
+$('#i_clear').onclick = () => { if (S.inv.edit) { endEdit(); } else { S.inv.client = ''; S.inv.tax = S.inv.date; S.inv.taxManual = false; S.inv.lines = blankLines(HALF); S.inv.noVat = false; S.inv.noVatReason = ''; } save(); invMsg(''); syncInvForm(); updateInvoice(); };
 $('#i_taxReset').onclick = e => { e.preventDefault(); S.inv.taxManual = false; S.inv.tax = S.inv.date; save(); syncInvForm(); updateInvoice(); };
 $('#i_cancelEdit').onclick = () => { endEdit(); saveNow(); invMsg(''); syncInvForm(); updateInvoice(); };
 $('#p_pdf').onclick = async () => {
@@ -804,7 +818,7 @@ function renderReg() {
     (y === 'Всички' || (inv.date || '').startsWith(y)) && (!m || +(inv.date || '').slice(5, 7) === m) &&
     (!q || [inv.no, inv.client, inv.eik, inv.vat, ...inv.lines].join(' ').toLowerCase().includes(q)));
   list.sort((a, b) => (b.inv.date || '').localeCompare(a.inv.date || '') || (+b.inv.no || 0) - (+a.inv.no || 0));
-  $('#r_t tbody').innerHTML = list.map(({ inv, idx }) => `<tr><td>${dmy(inv.date)}</td><td>${esc(inv.no)}</td><td>${esc(inv.client)}</td><td>${esc(inv.vat)}</td><td>${esc(inv.eik)}</td><td>${esc(inv.lines.filter(Boolean).join('; '))}</td><td class="n">${eur(inv.base)}</td><td class="n">${eur(inv.dds)}</td><td class="n">${eur(inv.total)}</td><td>${esc(inv.pay)}</td>
+  $('#r_t tbody').innerHTML = list.map(({ inv, idx }) => `<tr><td>${dmy(inv.date)}</td><td>${esc(inv.no)}${inv.noVat ? `<span class="nv" title="Основание: ${esc(inv.noVatReason || '')}">без ДДС</span>` : ''}</td><td>${esc(inv.client)}</td><td>${esc(inv.vat)}</td><td>${esc(inv.eik)}</td><td>${esc(inv.lines.filter(Boolean).join('; '))}</td><td class="n">${eur(inv.base)}</td><td class="n">${eur(inv.dds)}</td><td class="n">${eur(inv.total)}</td><td>${esc(inv.pay)}</td>
    <td style="white-space:nowrap">${inv.items ? `<button class="b g s" data-o="${idx}" title="Отвори във формата за преглед и повторен печат">Отвори</button> ` : ''}<button class="b g s" data-c="${idx}" title="Нова фактура на база тази">Копирай</button> <button class="b g s" data-e="${idx}" title="Редакция на данните в регистъра">Данни</button> <button class="b g s" data-d="${idx}">✕</button></td></tr>`).join('');
   const s = k => list.reduce((a, { inv }) => a + (+inv[k] || 0), 0);
   $('#r_sum').innerHTML = `${list.length} фактури · Ст-ст: <b>${eur(s('base'))}</b> · ДДС: <b>${eur(s('dds'))}</b> · Общо: <b>${eur(s('total'))}</b>`;
@@ -894,7 +908,7 @@ function journalData(y, m) {
   const pre = `${y}-${String(m).padStart(2, '0')}`;
   const rows = S.invoices.filter(i => (i.date || '').startsWith(pre)).slice()
     .sort((a, b) => (+a.no || 0) - (+b.no || 0) || String(a.no).localeCompare(String(b.no)) || (a.date || '').localeCompare(b.date || ''))
-    .map((i, k) => ({ n: k + 1, date: i.date, no: i.no, client: i.client, eik: i.eik || '', vat: i.vat || '', lines: (i.lines || []).filter(Boolean).join('; '), base: +i.base || 0, dds: +i.dds || 0, total: +i.total || 0, rate: i.rate != null && i.rate !== '' ? +i.rate : (i.base ? Math.round(i.dds / i.base * 1000) / 10 : S.rate), pay: i.pay }));
+    .map((i, k) => ({ n: k + 1, date: i.date, no: i.no, client: i.client, eik: i.eik || '', vat: i.vat || '', lines: (i.lines || []).filter(Boolean).join('; ') + (i.noVat ? ' [без ДДС: ' + (i.noVatReason || '') + ']' : ''), base: +i.base || 0, dds: +i.dds || 0, total: +i.total || 0, rate: i.rate != null && i.rate !== '' ? +i.rate : (i.base ? Math.round(i.dds / i.base * 1000) / 10 : S.rate), pay: i.pay }));
   const tot = rows.reduce((a, r) => ({ base: a.base + r.base, dds: a.dds + r.dds, total: a.total + r.total }), { base: 0, dds: 0, total: 0 });
   const byRate = {}; rows.forEach(r => { const k = String(r.rate); (byRate[k] = byRate[k] || { rate: r.rate, base: 0, dds: 0 }); byRate[k].base += r.base; byRate[k].dds += r.dds; });
   return { rows, tot, byRate: Object.values(byRate).sort((a, b) => b.rate - a.rate), period: `${MONTHS[m]} ${y}` };
@@ -1048,7 +1062,6 @@ function initLists() {
 
 /* ---------------- settings ---------------- */
 function renderSettings() {
-  renderAbout();
   applyPortableUi();
   $$('[data-c]').forEach(e => e.value = S.company[e.dataset.c] || '');
   $('#c_next').value = S.nextNo; $('#c_rate').value = S.rate; renderLogoCard(); renderAccentCard();
@@ -1059,7 +1072,7 @@ $('#tab-set').addEventListener('input', e => {
   const t = e.target;
   if (t.dataset.c) S.company[t.dataset.c] = t.value;
   else if (t.id === 'c_next') S.nextNo = t.value;
-  else if (t.id === 'c_rate') { S.rate = t.value; if (!S.inv.edit) S.inv.rate = t.value; }
+  else if (t.id === 'c_rate') { S.rate = t.value; if (!S.inv.edit && !S.inv.noVat) S.inv.rate = t.value; }
   else if (t.id === 'c_logo') S.logo = t.checked;
   else if (t.id === 'x_units') S.units = t.value.split('\n').map(s => s.trim()).filter(Boolean);
   else if (t.id === 'x_pays') S.payments = t.value.split('\n').map(s => s.trim()).filter(Boolean);
@@ -1373,8 +1386,9 @@ $('#sy_auto').onclick = syncFromDrive;
 $('#syncBtn').onclick = syncFromDrive;
 
 /* ---------------- about / version ---------------- */
-const LITE_VERSION = '1.4.2';   // keep in sync with lite\Faktura-Lite.csproj
+const LITE_VERSION = '1.5.0';   // keep in sync with lite\Faktura-Lite.csproj
 const CHANGELOG = [
+  ['2.11.0', '16.10.2026', ['Фактура без ДДС: отметка „Фактура без ДДС“ и задължително основание за неначисляване на ДДС (с примери), което се печата във фактурата; белег „без ДДС“ в регистъра; работи и в преносимата версия (Lite 1.5.0)', 'Нов раздел „За програмата“ — информация, обновявания и „Какво е ново“ (преместени от Настройки)', 'Изпращане на данните за тестване директно от програмата (ZIP с data.json към разработчика, през HTTPS) от раздел „За програмата“']],
   ['2.10.3', '16.10.2026', ['Логото най-отгоре във фактурата е по-малко (до 8,5 mm високо), и в преносимата версия']],
   ['2.10.2', '16.10.2026', ['Ако при издаване на фактура цената на артикул е променена ръчно, новата цена се запазва в артикулите (и в преносимата версия)']],
   ['2.10.1', '16.10.2026', ['Червена лента при редакция на записана фактура или разписка', 'Разделите „Данни“ и „Преглед и печат“ са голяма лента с икони най-отгоре', 'Бутон „+ Добави“ в синьо и с голям плюс; долните бутони с икони и по-голям размер', 'Избор на акцентен цвят в Настройки']],
@@ -1411,6 +1425,20 @@ async function renderAbout() {
   $('#ab_txt').innerHTML = lines.map(esc).join('<br>');
   $('#ab_log').innerHTML = CHANGELOG.map(([v, d, items]) => `<div style="margin-top:6px"><b>${v}</b> <span class="mut">${d}</span><ul style="margin:2px 0 0 18px;padding:0">${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>`).join('');
 }
+$('#sd_send').onclick = async () => {
+  const msg = (h, ok) => { $('#sd_msg').innerHTML = h ? `<div class="${ok ? 'okmsg' : 'err'}">${h}</div>` : ''; };
+  if (!HOST) { msg('Изпращането е възможно само от програмата за Windows.'); return; }
+  if (!await confirmHtml('Изпращане на данни за тестване', '<p>Ще бъдат изпратени <b>всички данни на програмата</b> (клиенти, доставчици, артикули, издадени фактури и разписки, настройки) на разработчика, за тестване и отстраняване на грешки. Изпращането е през защитена връзка (HTTPS), директно от програмата.</p><p class="mut">Данните съдържат лични данни на клиенти (ЕИК/ЕГН, адреси). Изпращайте ги само ако е нужно.</p>', 'Изпрати')) return;
+  saveNow(); msg('Изпращам…', true);
+  try {
+    const info = `Invoice app ${(await hostCall('about')).version} | invoices ${S.invoices.length}, receipts ${(S.receipts || []).length}, clients ${S.clients.length}, suppliers ${S.suppliers.length}, articles ${S.articles.length} | next no ${S.nextNo}`;
+    const r = await hostCall('sendData', { state: JSON.stringify(S), info });
+    if (r.sent) { msg(`Данните са изпратени (${r.kb} KB). Благодаря!`, true); return; }
+    const why = r.reason === 'noendpoint' ? 'Изпращането още не е настроено в тази версия.' : esc(r.message);
+    msg(`${why} Файлът е подготвен — можете да го изпратите ръчно. <button class="b g s" id="sd_show">Покажи файла</button>`);
+    $('#sd_show').onclick = () => hostCall('revealFile', r.file).catch(e => msg(esc(e.message)));
+  } catch (e) { msg('Не успях да изпратя данните: ' + esc(e.message)); }
+};
 $('#ab_copy').onclick = async () => { try { await navigator.clipboard.writeText(window.__aboutText || ''); $('#ab_msg').innerHTML = '<div class="okmsg">Информацията е копирана — поставете я в съобщение до поддръжката.</div>'; } catch (e) { $('#ab_msg').innerHTML = '<div class="err">Не успях да копирам.</div>'; } };
 
 /* ---------------- keyboard shortcuts ---------------- */

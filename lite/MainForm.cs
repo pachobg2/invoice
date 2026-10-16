@@ -14,6 +14,10 @@ namespace FakturaLite
         List<string> units = new List<string>();
 
         TabControl tabs; TabPage tpInv, tpReg;
+        CheckBox chkNoVat; ComboBox cbWhy; Label lblWhy;
+        // examples of the legal basis (ЗДДС) - only suggestions, the text can be typed freely
+        static readonly string[] WhyText = { "чл. 113, ал. 9 ЗДДС — лице, което не е регистрирано по ЗДДС", "чл. 21, ал. 2 ЗДДС — място на изпълнение извън страната", "чл. 28 ЗДДС — износ (нулева ставка)", "чл. 53 ЗДДС — вътреобщностна доставка (нулева ставка)" };
+        static readonly string[] WhyValue = { "чл. 113, ал. 9 от ЗДДС", "чл. 21, ал. 2 от ЗДДС", "чл. 28 от ЗДДС", "чл. 53 от ЗДДС" };
         ComboBox cbClient, cbPay, cbComp; Label lblInfo, lblRate, lblBase, lblVat, lblTot, lblNoWarn;
         Panel bottomPnl; Label hintLbl;
         Button btnNewClient, btnClearClient, btnPrint, btnPreview, btnSave, btnClear;
@@ -107,8 +111,15 @@ namespace FakturaLite
             tpInv.Controls.Add(L("Съставител", 230, 90, 100));
             cbComp = new ComboBox(); cbComp.Location = new Point(230, 108); cbComp.Size = new Size(260, 22); cbComp.DropDownStyle = ComboBoxStyle.DropDownList;
             tpInv.Controls.Add(cbComp);
-            lblRate = new Label(); lblRate.Location = new Point(510, 111); lblRate.Size = new Size(300, 18); lblRate.ForeColor = Color.DimGray;
+            lblRate = new Label(); lblRate.Location = new Point(690, 111); lblRate.Size = new Size(300, 18); lblRate.ForeColor = Color.DimGray;
             tpInv.Controls.Add(lblRate);
+            chkNoVat = new CheckBox(); chkNoVat.Text = "Фактура без ДДС"; chkNoVat.Location = new Point(510, 108); chkNoVat.Size = new Size(170, 22);
+            lblWhy = L("Основание за неначисляване на ДДС *", 690, 90, 300); lblWhy.Visible = false;
+            cbWhy = new ComboBox(); cbWhy.Location = new Point(690, 108); cbWhy.Size = new Size(300, 22); cbWhy.DropDownStyle = ComboBoxStyle.DropDown; cbWhy.MaxLength = 200; cbWhy.Visible = false;
+            foreach (string s in WhyText) cbWhy.Items.Add(s);
+            cbWhy.SelectedIndexChanged += delegate { int i = cbWhy.SelectedIndex; if (i >= 0 && i < WhyValue.Length) { string v = WhyValue[i]; BeginInvoke(new MethodInvoker(delegate { cbWhy.Text = v; })); } };
+            chkNoVat.CheckedChanged += delegate { ApplyNoVat(); };
+            tpInv.Controls.AddRange(new Control[] { chkNoVat, lblWhy, cbWhy });
 
             grid = new SuggestGrid(); grid.KeyHook = ArtKey;
             grid.Location = new Point(12, 142); grid.Size = new Size(1000, 380);
@@ -190,6 +201,14 @@ namespace FakturaLite
             FitGrid();
         }
 
+        void ApplyNoVat()
+        {
+            bool on = chkNoVat.Checked;
+            lblWhy.Visible = cbWhy.Visible = on; lblRate.Visible = !on;
+            if (on && cbWhy.Text.Trim().Length == 0) cbWhy.Text = st.Root.Str("noVatLast");
+            Recalc();
+        }
+
         void FitGrid()
         {
             int others = 0; for (int i = 0; i < grid.Columns.Count; i++) if (i != 1) others += grid.Columns[i].Width;
@@ -213,7 +232,7 @@ namespace FakturaLite
             if (cbPay.Items.Count > 0 && cbPay.SelectedIndex < 0) cbPay.SelectedIndex = 0;
             if (cbComp.Items.Count > 0 && cbComp.SelectedIndex < 0) cbComp.SelectedIndex = 0;
             FitDropDown(cbClient); FitDropDown(cbPay); FitDropDown(cbComp);
-            lblRate.Text = "ДДС ставка: " + st.Rate.ToString("0.##", CultureInfo.InvariantCulture) + "%  (променя се от основното приложение)";
+            lblRate.Text = "ДДС ставка: " + st.Rate.ToString("0.##", CultureInfo.InvariantCulture) + "%";
             loading = false;
         }
 
@@ -222,6 +241,7 @@ namespace FakturaLite
             loading = true;
             cbClient.Text = ""; txtNo.Text = Store.Pad(st.NextNo.ToString(CultureInfo.InvariantCulture));
             dtDate.Value = DateTime.Today; chkTax.Checked = true; dtTax.Value = DateTime.Today;
+            chkNoVat.Checked = false; cbWhy.Text = "";
             grid.Rows.Clear();
             for (int i = 0; i < 0; i++) grid.Rows.Add();
             loading = false;
@@ -243,6 +263,7 @@ namespace FakturaLite
             d.No = Digits(txtNo.Text); d.Date = dtDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             d.Tax = chkTax.Checked ? d.Date : dtTax.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             d.Client = cbClient.Text.Trim(); d.Pay = cbPay.SelectedItem as string ?? ""; d.Comp = cbComp.SelectedItem as string ?? ""; d.Rate = st.Rate;
+            d.NoVat = chkNoVat.Checked; d.NoVatReason = cbWhy.Text.Trim(); if (d.NoVat) d.Rate = 0m;
             JObj c = st.FindClient(d.Client);
             if (c != null) { d.CAddr = c.Str("addr"); d.CVat = c.Str("vat"); d.CEik = c.Str("eik"); d.CMol = c.Str("mol"); }
             foreach (DataGridViewRow r in grid.Rows)
@@ -402,6 +423,7 @@ namespace FakturaLite
             if (st.FindClient(d.Client) == null) return "Клиентът не е в списъка. Добавете го с „+ нов клиент“.";
             if (d.No.Length == 0) return "Няма номер на фактурата!";
             if (Store.UsedItems(d).Count == 0) return "Няма добавени стоки!";
+            if (d.NoVat && d.NoVatReason.Length == 0) return "Фактура без ДДС: въведете основание за неначисляване на ДДС!";
             return null;
         }
 

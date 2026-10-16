@@ -19,6 +19,7 @@ namespace FakturaLite
         public string No = "", Date = "", Tax = "", Client = "", Pay = "", Comp = "";
         public string CAddr = "", CVat = "", CEik = "", CMol = "";
         public decimal Rate = 20;
+        public bool NoVat; public string NoVatReason = "";     // an invoice without VAT states the reason (ЗДДС)
         public List<Item> Items = new List<Item>();
         public decimal Base, Vat, Total;
     }
@@ -165,7 +166,8 @@ namespace FakturaLite
             Doc d = new Doc();
             d.No = rec.Str("no"); d.Date = rec.Str("date"); d.Tax = rec.Str("tax").Length > 0 ? rec.Str("tax") : d.Date;
             d.Client = rec.Str("client"); d.Pay = rec.Str("pay"); d.Comp = rec.Str("comp");
-            d.Rate = rec.Num("rate") > 0 ? (decimal)rec.Num("rate") : Rate;
+            d.NoVat = rec["noVat"] is bool && (bool)rec["noVat"]; d.NoVatReason = rec.Str("noVatReason");
+            d.Rate = d.NoVat ? 0m : rec.Num("rate") > 0 ? (decimal)rec.Num("rate") : Rate;
             JObj c = FindClient(d.Client);
             if (c != null) { d.CAddr = c.Str("addr"); d.CVat = c.Str("vat"); d.CEik = c.Str("eik"); d.CMol = c.Str("mol"); }
             else { d.CVat = rec.Str("vat"); d.CEik = rec.Str("eik"); }
@@ -198,6 +200,7 @@ namespace FakturaLite
             rec["base"] = Json.Num((double)d.Base); rec["dds"] = Json.Num((double)d.Vat); rec["total"] = Json.Num((double)d.Total);
             rec["pay"] = d.Pay; rec["comp"] = d.Comp; rec["rate"] = Json.Num((double)d.Rate);
             rec["items"] = items;
+            if (d.NoVat) { rec["noVat"] = true; rec["noVatReason"] = d.NoVatReason; Root["noVatLast"] = d.NoVatReason; }
             Invoices.Add(rec);
             // a price typed on the invoice that differs from the article's saved price becomes the saved price (only for articles that already have one)
             LastPriceUpdates = new List<string>();

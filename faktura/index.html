@@ -54,6 +54,7 @@ button.b.s{padding:3px 8px;font-size:12px}
 /* the "Добави" button of the Клиенти / Доставчици / Артикули lists: the accent blue and a big + */
 button.bigbtn{display:inline-flex;align-items:center;gap:10px;font-size:15px;font-weight:700;padding:10px 20px 10px 16px}
 button.bigbtn svg{width:22px;height:22px;flex:none}
+.nv{display:inline-block;background:#d93025;color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle}
 .swb{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
 .swb:hover{border-color:var(--ink)}
 button.addbtn{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:700;padding:6px 18px 6px 14px}
@@ -194,6 +195,7 @@ dialog .f{margin-bottom:9px}
  </div>
  <span class="sp"></span>
  <button class="sb" data-t="set" data-g="set" title="Настройки"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Настройки</span></button>
+ <button class="sb" data-t="about" data-g="about" title="За програмата"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5h.01"/></svg><span>За програмата</span></button>
  <button class="sb" id="themeBtn" title="Светъл / тъмен режим"><span class="ic"></span><span id="themeLbl">Тъмен режим</span></button>
 </nav>
 <div id="scroller">
@@ -227,6 +229,16 @@ dialog .f{margin-bottom:9px}
    <div><label>Плащане</label><select id="i_pay"></select></div>
    <div><label>Съставител</label><select id="i_comp"></select></div>
    <div><label>Оригинал / копие</label><select id="i_orig"><option>ОРИГИНАЛ</option><option value="">(без надпис)</option></select></div>
+  </div>
+  <div style="margin-top:8px">
+   <label style="display:inline-flex;gap:8px;align-items:center;margin:0;font-size:14px;color:var(--ink);cursor:pointer"><input type="checkbox" id="i_noVat" style="width:auto"> <b>Фактура без ДДС</b> <span class="mut">(ДДС 0 — задължително се посочва основание)</span></label>
+   <div id="i_noVatBox" class="hide" style="margin-top:6px">
+    <div class="grid" style="grid-template-columns:1fr 2fr">
+     <div><label>Примерно основание</label><select id="i_noVatPre"><option value="">— избери или въведи ръчно —</option><option value="чл. 113, ал. 9 от ЗДДС">чл. 113, ал. 9 ЗДДС — лице, което не е регистрирано по ЗДДС</option><option value="чл. 21, ал. 2 от ЗДДС">чл. 21, ал. 2 ЗДДС — място на изпълнение на услугата извън страната</option><option value="чл. 28 от ЗДДС">чл. 28 ЗДДС — износ (нулева ставка)</option><option value="чл. 53 от ЗДДС">чл. 53 ЗДДС — вътреобщностна доставка (нулева ставка)</option></select></div>
+     <div><label>Основание за неначисляване на ДДС <span style="color:#d93025">*</span></label><input id="i_noVatWhy" maxlength="200" placeholder="напр. чл. 113, ал. 9 от ЗДДС" autocomplete="off"></div>
+    </div>
+    <div class="mut" style="margin-top:2px">Фактурата без ДДС трябва да съдържа основание за неначисляването на данъка според ЗДДС. Примерите са ориентировъчни — уточнете основанието със счетоводителя.</div>
+   </div>
   </div>
   <div class="scroll" style="max-height:none;margin-top:10px">
   <table class="t" id="i_items"><thead><tr><th style="width:26px">№</th><th>Наименование на стоката / услугата</th><th style="width:90px">Код</th><th class="n" style="width:90px">Количество</th><th class="n" style="width:100px">Ед. цена</th><th class="n" style="width:100px">Стойност</th><th style="width:30px"></th></tr></thead><tbody></tbody></table>
@@ -356,6 +368,22 @@ dialog .f{margin-bottom:9px}
 <section class="tab hide" id="tab-sups"><div class="card"><h2>Доставчици</h2><div id="l_sups"></div></div></section>
 <section class="tab hide" id="tab-arts"><div class="card"><h2>Артикули и основания</h2><div id="l_arts"></div></div></section>
 
+<section class="tab hide" id="tab-about">
+ <div class="card"><h2>За програмата</h2>
+  <div class="mut" id="ab_txt" style="line-height:1.6;word-break:break-all"></div>
+  <div class="row" style="margin-top:8px"><button class="b g" id="ab_copy">Копирай информация за поддръжка</button><button class="b g" id="up_check">Провери за обновления</button>
+   <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="up_auto"> Проверявай за обновления при всяко стартиране</label></div>
+  <div id="up_msg"></div>
+  <div class="mut" style="margin-top:6px">Обновленията се теглят от GitHub (pachobg2/invoice) и се проверяват с контролна сума. Данните в „invoice-data“ не се променят.</div>
+  <div id="ab_msg"></div>
+ </div>
+ <div class="card"><h2>Изпращане на данни за тестване</h2>
+  <div class="mut" style="margin-bottom:8px">Изпраща данните на програмата (ZIP с data.json) на разработчика — за тестване и отстраняване на грешки. Изпращането е през защитена връзка (HTTPS), директно от програмата — не е нужна имейл програма. Данните съдържат клиенти, фактури и други лични данни — изпращайте само при нужда.</div>
+  <div class="row"><button class="b" id="sd_send">Изпрати данни за тестване…</button></div>
+  <div id="sd_msg"></div>
+ </div>
+ <div class="card"><h2>Какво е ново</h2><div id="ab_log" class="mut"></div></div>
+</section>
 <section class="tab hide" id="tab-set">
  <div class="card"><h2>Данни за фирмата (Доставчик във фактурата и „Издава“ в разписката)</h2>
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
@@ -416,15 +444,6 @@ dialog .f{margin-bottom:9px}
   <div class="mut" style="margin-bottom:8px">Добавя нови клиенти, доставчици, артикули и издадени фактури от по-нова версия на Excel файла с фактурите (.xlsx или .xlsm). Преди да добави каквото и да е, показва преглед. Съществуващите записи не се променят и не се дублират.</div>
   <label class="b g" style="cursor:pointer;color:var(--ink);display:inline-block;margin:0">Избери Excel файл…<input type="file" id="xl_file" accept=".xlsx,.xlsm" class="hide"></label>
   <div id="xl_msg"></div>
- </div>
- <div class="card"><h2>За програмата</h2>
-  <div class="mut" id="ab_txt" style="line-height:1.6;word-break:break-all"></div>
-  <div class="row" style="margin-top:8px"><button class="b g" id="ab_copy">Копирай информация за поддръжка</button><button class="b g" id="up_check">Провери за обновления</button>
-   <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="up_auto"> Проверявай за обновления при всяко стартиране</label></div>
-  <div id="up_msg"></div>
-  <div class="mut" style="margin-top:6px">Обновленията се теглят от GitHub (pachobg2/invoice) и се проверяват с контролна сума. Данните в „invoice-data“ не се променят.</div>
-  <div id="ab_msg"></div>
-  <details style="margin-top:8px"><summary style="cursor:pointer">Какво е ново</summary><div id="ab_log" class="mut"></div></details>
  </div>
  <div class="card"><h2>Резервно копие</h2>
   <div class="row"><button class="b g" id="bk_exp">Експорт (JSON)</button>
